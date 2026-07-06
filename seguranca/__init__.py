@@ -1,5 +1,5 @@
 from seguranca.auth import set_password, verify_password, is_admin, has_password
-from seguranca.backup import create_backup, list_backups, maybe_auto_backup
+from seguranca.backup import create_backup, list_backups, maybe_auto_backup, iniciar as iniciar_backup_diario
 from seguranca.crypto import decrypt, encrypt, is_real_encryption
 from seguranca.permissions import (
     PermissionDenied, check_destructive_action, is_admin_mode, requires_confirmation,
@@ -9,7 +9,7 @@ __all__ = [
     "set_password", "verify_password", "is_admin", "has_password",
     "encrypt", "decrypt", "is_real_encryption",
     "is_admin_mode", "requires_confirmation", "check_destructive_action", "PermissionDenied",
-    "create_backup", "list_backups", "maybe_auto_backup",
+    "create_backup", "list_backups", "maybe_auto_backup", "iniciar_backup_diario",
     "status",
 ]
 

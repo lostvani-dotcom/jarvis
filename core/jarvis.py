@@ -122,6 +122,12 @@ class Jarvis:
             except Exception as e:
                 if self.log:
                     self.log.warning("falha no backup automático: %s", e)
+            try:
+                import seguranca
+                seguranca.iniciar_backup_diario(self)
+            except Exception as e:
+                if self.log:
+                    self.log.warning("falha ao agendar backup diário: %s", e)
 
         if self.settings.is_module_enabled("automacao"):
             try:

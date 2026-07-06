@@ -105,7 +105,8 @@
     "exigir_confirmacao_acoes_destrutivas": true,
     "backup_automatico": true,
     "backup_intervalo_horas": 24,
-    "backup_max_arquivos": 10
+    "backup_max_arquivos": 10,
+    "backup_horario": "02:00"
   },
   "logs": {
     "nivel": "INFO",
