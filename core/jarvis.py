@@ -200,6 +200,12 @@ class Jarvis:
             except Exception as e:
                 if self.log:
                     self.log.warning("falha ao iniciar sistema de curiosidade: %s", e)
+            try:
+                from sistema import observador_internet
+                observador_internet.iniciar(self)
+            except Exception as e:
+                if self.log:
+                    self.log.warning("falha ao iniciar observador da internet: %s", e)
 
         if self.settings.is_module_enabled("visao_continua"):
             try:

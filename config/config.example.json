@@ -96,7 +96,9 @@
     "intervalo_monitor_segundos": 30,
     "historico_maximo": 500,
     "curiosidade": true,
-    "curiosidade_intervalo_minutos": 10
+    "curiosidade_intervalo_minutos": 10,
+    "observador_internet": true,
+    "observador_internet_intervalo_horas": 12
   },
   "seguranca": {
     "modo_administrador": false,

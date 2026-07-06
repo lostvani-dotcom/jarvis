@@ -22,8 +22,14 @@ from core.plugin_manager import BasePlugin
 from seguranca.permissions import PermissionDenied, confirmado_pela_frase_ou_config
 
 _VERIFICAR_RE = re.compile(
-    r"\b(verific[ae]|check?[ae]|tem)\w*\s+.*\batualiza[çc][ãa]o\b|"
-    r"\batualiza[çc][ãa]o\s+(?:nova|dispon[ií]vel)\b",
+    # (?!...biblioteca...) -- sem essa exclusão, "tem alguma atualização
+    # de biblioteca" (sistema/observador_internet.py, atualização de
+    # DEPENDÊNCIA de terceiros) era sequestrado por este plugin (que é
+    # sobre o Ultron se autoatualizar), já que "tem ... atualização" sem
+    # mais nada é genérico demais. Achado numa auditoria de colisão de
+    # triggers, no mesmo dia em que o Observador da Internet foi criado.
+    r"\b(verific[ae]|check?[ae]|tem)\w*\s+.*\batualiza[çc][ãa]o\b(?!.*\b(?:biblioteca|framework|depend[êe]ncia)s?\b)|"
+    r"\batualiza[çc][ãa]o\s+(?:nova|dispon[ií]vel)\b(?!.*\b(?:biblioteca|framework|depend[êe]ncia)s?\b)",
     re.IGNORECASE,
 )
 _ATUALIZAR_RE = re.compile(r"\batualiz[ae]\w*\s+o\s+jarvis\b", re.IGNORECASE)
