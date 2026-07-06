@@ -53,9 +53,15 @@ class MemoryCommandsPlugin(BasePlugin):
             memory.remember_fact(user_id, key, value)
             return Answer(f"Anotado: {key} = {value}.", Confidence.CONFIRMED)
 
-        # Esquecer fato: "esqueça X" / "esqueca X" / "esquece X"
+        # Esquecer fato: "esqueça X" / "esqueca X" / "esquece X" -- exceto
+        # "minha navegação"/"histórico do redcore", que são do
+        # plugins/redcore.py (limpar o histórico do navegador do Ultron,
+        # não um fato genérico). Sem essa exclusão, "esquece minha
+        # navegação" virava "Ok, esqueci sobre 'minha navegação'" (um
+        # fato que nunca existiu) em vez de realmente limpar o
+        # histórico -- achado numa auditoria de colisão de triggers.
         m = re.search(r"esque(?:ça|ca|ce) (?:que )?(.+)", t)
-        if m:
+        if m and not re.search(r"\bnavega[çc][ãa]o\b|\bredcore\b", m.group(1)):
             key = m.group(1).strip(" .!")
             memory.forget_fact(user_id, key)
             return Answer(f"Ok, esqueci sobre '{key}'.", Confidence.CONFIRMED)
