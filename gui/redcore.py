@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
-_PAGINA_INICIAL = "https://duckduckgo.com/"
+_PAGINA_INICIAL = "https://www.google.com/"
 _INTERVALO_CAPTURA_MS = 20_000  # 20s -- frequente o bastante pra pegar troca de e-mail
 _MIN_CONTEUDO_CHARS = 20  # ignora capturas triviais (tela em branco/carregando)
 
@@ -264,7 +264,7 @@ def _resolver_endereco(texto: str) -> str:
     if "." in texto and " " not in texto:
         return f"https://{texto}"
     import urllib.parse
-    return f"https://duckduckgo.com/?q={urllib.parse.quote(texto)}"
+    return f"https://www.google.com/search?q={urllib.parse.quote(texto)}"
 
 
 def run_redcore(user_id: str = "default_user"):
