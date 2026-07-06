@@ -1,0 +1,6 @@
+# Opcional -- criptografia real de segredos (ver seguranca/crypto.py).
+# Sem isto, o Jarvis ainda funciona (autenticação PIN/senha via
+# hashlib da stdlib continua real), mas a "criptografia" de segredos
+# salvos (ex.: API keys) cai para uma ofuscação base64 reversível --
+# NÃO é proteção de verdade. Instale isto para ter Fernet (AES) real.
+cryptography>=42.0.0

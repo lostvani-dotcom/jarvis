@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Entrada por voz (botão de microfone, ver MainActivity.kt:iniciarEscuta()). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Pra disparar a instalação da própria atualização baixada
+         (ver MainActivity.kt: baixarEInstalarAtualizacao()). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Concedida via tela do Android (Settings.ACTION_USAGE_ACCESS_SETTINGS),
+         não pelo diálogo normal de permissão; declarada aqui só por
+         documentação (DeviceCommands.kt checa via AppOpsManager). -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Localização (comando "localizacao"): pedida pelo diálogo normal. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Não Perturbe (comando "nao_perturbe"): acesso especial, concedido
+         numa tela do Android (Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS). -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- Brilho / timeout da tela (comandos "brilho" e "timeout_tela"):
+         acesso especial "Modificar configurações do sistema", concedido
+         numa tela do Android (Settings.ACTION_MANAGE_WRITE_SETTINGS). -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- Alarme/timer offline via app de relogio do sistema
+         (LocalCommands.kt: AlarmClock.ACTION_SET_ALARM/SET_TIMER);
+         permissao normal, concedida automaticamente na instalacao. -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.JarvisCompanion"
+        android:usesCleartextTraffic="true">
+
+        <!--
+        usesCleartextTraffic: o app fala HTTP simples (não HTTPS) com o
+        servidor do Ultron (server/http_server.py); tráfego fica só
+        dentro da rede Wi-Fi local, nunca sai pra internet. Configurar
+        TLS com certificado próprio pra um servidor pessoal de LAN seria
+        complexidade desproporcional ao ganho de segurança aqui (mesmo
+        modelo de confiança do ADB sem fio: rede local é o perímetro).
+        -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".NotifyListenerService"
+            android:label="Ultron Companion"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Necessário pra instalar o APK baixado por dentro do app
+             (Android exige content:// URI, não file://, desde a API 24). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
+</manifest>

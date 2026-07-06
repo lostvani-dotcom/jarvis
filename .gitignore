@@ -1,0 +1,46 @@
+# Segredos e dados pessoais -- nunca versionar
+config/config.json
+config/config.yaml
+data/.jarvis.key
+data/jarvis.db
+data/backups/
+data/programas_gerados/
+data/videos/
+data/gemeo_digital/
+data/instagram_browser_profile/
+data/logins_browser_profile/
+# Cópias de sessão do navegador pessoal (automacao/navegador_pessoal.py,
+# automacao/instagram_auto.py, automacao/musica.py) -- contêm cookies/
+# tokens de login reais copiados do Chrome/Brave/Edge do usuário.
+data/perfil_navegador_ultron/
+data/instagram_perfil_pessoal_copia/
+data/youtube_music_profile/
+
+# Config local de ferramentas -- específico da máquina/usuário, não é
+# código do projeto.
+.claude/
+.vscode/
+
+# Rascunhos de habilidades gerados pelo Jarvis (core/skill_forge.py) --
+# nunca versionar código não revisado ainda; uma vez aprovado, ele sai
+# daqui e vira um plugin de verdade em plugins/.
+plugins/pendentes/
+logs/*.log
+logs/*.log.*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Binários externos baixados (ex.: Android SDK Platform Tools) -- ver
+# dispositivos/README.md
+tools/
+
+# App Android (app_android/) -- artefatos de build e config de máquina
+app_android/local.properties
+app_android/.gradle/
+app_android/**/build/
+app_android/*.iml
+app_android/.idea/

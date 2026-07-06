@@ -1,0 +1,103 @@
+package com.jarvis.companion
+
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+
+/** Cliente HTTP simples pro servidor do Ultron (server/http_server.py)
+ * -- sem lib externa (OkHttp/Retrofit), só java.net puro, porque os
+ * endpoints são poucos e simples o bastante pra não precisar disso. */
+object JarvisClient {
+
+    class JarvisException(message: String) : Exception(message)
+
+    private fun request(
+        baseUrl: String, path: String, method: String, token: String, body: JSONObject? = null,
+    ): JSONObject {
+        val conn = URL(baseUrl + path).openConnection() as HttpURLConnection
+        try {
+            conn.requestMethod = method
+            conn.connectTimeout = 8000
+            conn.readTimeout = 30000
+            if (token.isNotEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer $token")
+            }
+            if (body != null) {
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+            }
+
+            val status = conn.responseCode
+            val stream = if (status in 200..299) conn.inputStream else conn.errorStream
+            val texto = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: "{}"
+            val json = try {
+                JSONObject(texto)
+            } catch (e: Exception) {
+                JSONObject()
+            }
+
+            if (status !in 200..299) {
+                throw JarvisException(json.optString("erro", "erro HTTP $status"))
+            }
+            return json
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    fun status(baseUrl: String): Boolean = try {
+        request(baseUrl, "/status", "GET", "").optBoolean("ok", false)
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Config do provedor de IA (URL/chave/modelo/prompt) pra conversar
+     * direto com a nuvem quando o PC estiver desligado -- ver
+     * server/http_server.py:/ia/config. Null se o PC não tiver provedor
+     * remoto configurado (ou a chamada falhar). */
+    fun getIaConfig(baseUrl: String, token: String): JSONObject? = try {
+        val r = request(baseUrl, "/ia/config", "GET", token)
+        if (r.optBoolean("disponivel", false)) r else null
+    } catch (e: Exception) {
+        null
+    }
+
+    fun chat(baseUrl: String, token: String, texto: String): String {
+        val body = JSONObject().put("text", texto)
+        return request(baseUrl, "/chat", "POST", token, body).optString("resposta", "")
+    }
+
+    fun notify(baseUrl: String, token: String, pacote: String, titulo: String, texto: String) {
+        val body = JSONObject()
+            .put("pacote", pacote)
+            .put("titulo", titulo)
+            .put("texto", texto)
+        request(baseUrl, "/notify", "POST", token, body)
+    }
+
+    /** Pergunta se o Ultron pediu algo (bateria, abrir app, app em
+     * primeiro plano) -- ver automacao/phone_commands.py. Retorna
+     * null se não tiver nada pendente agora. */
+    fun getDeviceCommand(baseUrl: String, token: String): JSONObject? {
+        val resposta = request(baseUrl, "/device/commands", "GET", token)
+        return resposta.optJSONObject("comando")
+    }
+
+    fun postDeviceResult(baseUrl: String, token: String, id: String, resultado: JSONObject) {
+        val body = JSONObject().put("id", id).put("resultado", resultado)
+        request(baseUrl, "/device/result", "POST", token, body)
+    }
+
+    /** Mensagens espontâneas do Ultron (lembrete, comentário de
+     * observação -- ver automacao/notify.py). */
+    fun poll(baseUrl: String, token: String): JSONArray {
+        return request(baseUrl, "/poll", "GET", token).optJSONArray("mensagens") ?: JSONArray()
+    }
+
+    /** Versão do APK disponível no PC (ver server/http_server.py,
+     * GET /app/version) -- sem autenticação, é só metadado público
+     * pra decidir se vale baixar uma atualização. */
+    fun getServerVersion(baseUrl: String): JSONObject = request(baseUrl, "/app/version", "GET", "")
+}
