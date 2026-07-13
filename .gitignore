@@ -12,6 +12,12 @@ data/logins_browser_profile/
 # Fotos de rosto cadastradas para reconhecimento facial (LBPH,
 # visao/faces.py) -- dados biométricos, nunca versionar.
 data/faces/
+# Amostra de voz gravada para clonagem (voz/clonagem.py) -- dado
+# biométrico, mesmo motivo de data/faces/, nunca versionar.
+data/voz_clonada/
+# Áudios gerados com a voz clonada (voz/clonagem.py:gerar_arquivo_compartilhavel)
+# -- conteúdo pessoal gerado sob demanda, nunca versionar.
+data/audios_gerados/
 # Favoritos/downloads do RedCore (gui/redcore.py) -- dados pessoais de
 # navegação, mesmo padrão do histórico (data/jarvis.db).
 data/redcore_downloads/

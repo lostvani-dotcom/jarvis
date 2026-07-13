@@ -132,6 +132,12 @@ class TextToSpeech:
             self._sapi.Voice = voz
 
     def speak(self, text: str):
+        if self._usar_voz_clonada():
+            try:
+                self._speak_clonada(text)
+                return
+            except Exception as e:
+                log.warning("voz clonada falhou, caindo para a voz normal: %s", e)
         if self.robotic and HAS_SAPI_COM:
             try:
                 self._speak_robotic(text)
@@ -152,6 +158,32 @@ class TextToSpeech:
             self._sapi.Speak(text)
             return
         raise RuntimeError("Instale 'pyttsx3' para o Ultron falar (pip install pyttsx3).")
+
+    def _usar_voz_clonada(self) -> bool:
+        """Voz clonada (ver voz/clonagem.py) e voz robótica são
+        personas MUTUAMENTE EXCLUSIVAS de propósito -- não faz sentido
+        aplicar o efeito "Ultron" grave/metálico em cima da SUA própria
+        voz clonada. Quando a clonagem está ligada e disponível, ela
+        tem prioridade sobre `self.robotic`."""
+        from config.settings import get_settings
+        if not get_settings().get("personalidade.voz_clonada_ativa", False):
+            return False
+        from voz.clonagem import get_cloner
+        return get_cloner().disponivel()
+
+    def _speak_clonada(self, text: str):
+        import os
+        import winsound
+        from voz.clonagem import get_cloner
+
+        caminho = get_cloner().sintetizar(text, idioma=self.voice_language_hint or "pt")
+        try:
+            winsound.PlaySound(caminho, winsound.SND_FILENAME)
+        finally:
+            try:
+                os.remove(caminho)
+            except OSError:
+                pass
 
     def _speak_robotic(self, text: str):
         # Efeito "Ultron" (DSP): renderiza a fala grave num WAV e

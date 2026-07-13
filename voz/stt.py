@@ -38,6 +38,14 @@ Melhorias adicionais:
   cada modelo do vosk já É de um idioma específico, não tem como
   "auto-detectar" sem carregar vários modelos ao mesmo tempo (custo
   alto demais pra valer a pena aqui).
+- **Escolha de microfone** (`voz.microfone_index`, BUG CORRIGIDO):
+  essa chave existia no config.json desde sempre mas nunca era lida em
+  lugar nenhum -- todas as gravações sempre usavam o dispositivo de
+  entrada PADRÃO do Windows. Agora `SpeechToText` lê essa chave de
+  verdade (parâmetro `device_index`) e passa pro `sounddevice` na hora
+  de abrir o stream; `listar_microfones()` lista os índices disponíveis
+  (ver plugins/voz_config.py: "que microfones você tem" / "usa o
+  microfone N").
 """
 
 import importlib.util
@@ -98,10 +106,47 @@ def _has_input_device() -> bool:
         return False
 
 
+def listar_microfones() -> list:
+    """Lista os microfones que o SO enxerga -- {"index", "nome",
+    "padrao"} por dispositivo de ENTRADA (ignora saídas de áudio, que
+    `sd.query_devices()` também lista misturadas). Usado por
+    plugins/voz_config.py pro comando "que microfones você tem".
+
+    BUG CORRIGIDO: `voz.microfone_index` existia no config.json mas
+    nunca era usado em lugar nenhum -- as gravações sempre iam pro
+    dispositivo de entrada PADRÃO do Windows, então trocar essa chave
+    não tinha efeito nenhum, e não havia como sequer descobrir os
+    índices disponíveis pra configurá-la. Agora `SpeechToText`/
+    `WakeWordDetector` leem essa chave de verdade (ver `device_index`
+    abaixo) e passam pro `sounddevice` na hora de abrir o stream."""
+    if not HAS_SOUNDDEVICE:
+        return []
+    try:
+        padrao = sd.default.device[0]
+    except Exception:
+        padrao = None
+    resultado = []
+    try:
+        for indice, dispositivo in enumerate(sd.query_devices()):
+            if dispositivo.get("max_input_channels", 0) > 0:
+                resultado.append({
+                    "index": indice,
+                    "nome": dispositivo.get("name", f"Dispositivo {indice}"),
+                    "padrao": indice == padrao,
+                })
+    except Exception as e:
+        log.warning("falha ao listar microfones: %s", e)
+        return []
+    return resultado
+
+
 class SpeechToText:
-    def __init__(self, language: str = "pt-BR", engine: str = "auto"):
+    def __init__(self, language: str = "pt-BR", engine: str = "auto", device_index: int = None):
         self.language = language
         self.engine = engine
+        if device_index is None:
+            device_index = get_settings().get("voz.microfone_index", None)
+        self.device_index = device_index
         self._vosk_model = None
         self._whisper_model = None
 
@@ -168,7 +213,9 @@ class SpeechToText:
         silencio_acumulado = 0.0
         tempo_total = 0.0
 
-        with sd.InputStream(samplerate=samplerate, channels=1, dtype="int16", blocksize=tamanho_bloco) as stream:
+        with sd.InputStream(
+            samplerate=samplerate, channels=1, dtype="int16", blocksize=tamanho_bloco, device=self.device_index,
+        ) as stream:
             while tempo_total < duracao_maxima:
                 bloco, _overflow = stream.read(tamanho_bloco)
                 blocos.append(bloco.copy())
@@ -261,7 +308,7 @@ class SpeechToText:
 
     def _listen_speech_recognition(self) -> dict:
         recognizer = sr.Recognizer()
-        with sr.Microphone() as source:
+        with sr.Microphone(device_index=self.device_index) as source:
             recognizer.adjust_for_ambient_noise(source, duration=0.5)
             audio = recognizer.listen(source)
         try:

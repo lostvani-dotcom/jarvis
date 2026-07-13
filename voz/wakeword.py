@@ -112,10 +112,16 @@ class WakeWordDetector:
 
         detectado = False
         inicio = time.monotonic()
+        # Mesmo microfone escolhido em voz.microfone_index (ver
+        # voz/stt.py) -- sem isso, o Porcupine escutaria o dispositivo
+        # PADRÃO enquanto o resto do fluxo grava do microfone escolhido,
+        # inconsistência que passaria despercebida em quem só tem um
+        # microfone mas quebraria silenciosamente pra quem tem mais de um.
+        device_index = getattr(self.stt, "device_index", None)
         try:
             with sd.RawInputStream(
                 samplerate=porcupine.sample_rate, blocksize=porcupine.frame_length,
-                dtype="int16", channels=1, callback=_callback,
+                dtype="int16", channels=1, callback=_callback, device=device_index,
             ):
                 while True:
                     if timeout_seconds is not None and (time.monotonic() - inicio) > timeout_seconds:

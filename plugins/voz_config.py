@@ -15,6 +15,8 @@ Comandos:
     "liga a palavra de ativação" / "desliga a palavra de ativação"
     "muda a palavra de ativação para <palavra>"
     "liga a voz robótica" / "desliga a voz robótica"
+    "que microfones você tem" / "lista microfones"
+    "usa o microfone <número>" / "muda pro microfone <número>"
 """
 
 import re
@@ -43,11 +45,14 @@ _WAKEWORD_MUDAR_RE = re.compile(
 _ROBOTICA_LIGA_RE = re.compile(r"\blig[ae]\w*\s+.*\bvoz\s+rob[óo]tica\b|\bativ[ae]\w*\s+.*\bvoz\s+rob[óo]tica\b", re.IGNORECASE)
 _ROBOTICA_DESLIGA_RE = re.compile(r"\b(deslig[ae]|desativ[ae])\w*\s+.*\bvoz\s+rob[óo]tica\b", re.IGNORECASE)
 
+_MIC_LISTAR_RE = re.compile(r"\bque\s+microfones?\s+voc[eê]\s+tem\b|\blist[ae]\w*\s+(?:os\s+)?microfones?\b", re.IGNORECASE)
+_MIC_USAR_RE = re.compile(r"\b(?:usa|use|muda|mude)\w*\s+(?:pro?\s+|para\s+o\s+)?microfone\s+(\d+)\b", re.IGNORECASE)
+
 
 class VozConfigPlugin(BasePlugin):
     name = "voz_config"
-    description = "Liga/desliga conversa contínua, palavra de ativação e voz robótica; muda a palavra de ativação"
-    triggers = ["conversa contínua", "palavra de ativação", "voz robótica"]
+    description = "Liga/desliga conversa contínua, palavra de ativação, voz robótica e microfone usado"
+    triggers = ["conversa contínua", "palavra de ativação", "voz robótica", "microfone"]
 
     def matches(self, text: str) -> bool:
         t = text.strip()
@@ -55,6 +60,7 @@ class VozConfigPlugin(BasePlugin):
             _CONVERSA_LIGA_RE.search(t) or _CONVERSA_DESLIGA_RE.search(t)
             or _WAKEWORD_LIGA_RE.search(t) or _WAKEWORD_DESLIGA_RE.search(t) or _WAKEWORD_MUDAR_RE.search(t)
             or _ROBOTICA_LIGA_RE.search(t) or _ROBOTICA_DESLIGA_RE.search(t)
+            or _MIC_LISTAR_RE.search(t) or _MIC_USAR_RE.search(t)
         )
 
     def handle(self, text: str, context: dict):
@@ -127,4 +133,44 @@ class VozConfigPlugin(BasePlugin):
                 Confidence.CONFIRMED,
             )
 
+        if _MIC_LISTAR_RE.search(t):
+            return self._listar_microfones()
+        m = _MIC_USAR_RE.search(t)
+        if m:
+            return self._usar_microfone(int(m.group(1)))
+
         return None
+
+    def _listar_microfones(self):
+        from voz.stt import listar_microfones
+        microfones = listar_microfones()
+        if not microfones:
+            return Answer(
+                "Não encontrei nenhum microfone -- confira se tem um conectado/habilitado no Windows.",
+                Confidence.GUESS,
+            )
+        linhas = [
+            f"- {m['index']}: {m['nome']}" + (" (padrão do sistema)" if m["padrao"] else "")
+            for m in microfones
+        ]
+        return Answer(
+            "Microfones disponíveis:\n" + "\n".join(linhas) +
+            '\n\nDiga "usa o microfone <número>" pra escolher um.',
+            Confidence.CONFIRMED,
+        )
+
+    def _usar_microfone(self, indice: int):
+        from voz.stt import listar_microfones
+        validos = {m["index"] for m in listar_microfones()}
+        if indice not in validos:
+            return Answer(
+                f'Não achei o microfone {indice} -- diga "que microfones você tem" pra ver os índices válidos.',
+                Confidence.GUESS,
+            )
+        settings = get_settings()
+        settings.set("voz.microfone_index", indice)
+        settings.save()
+        return Answer(
+            f"Combinado, vou usar o microfone {indice} a partir da próxima vez que eu iniciar o modo voz.",
+            Confidence.CONFIRMED,
+        )

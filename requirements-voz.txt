@@ -33,3 +33,20 @@ faster-whisper>=1.0.0
 # Redução de ruído no áudio gravado antes de transcrever (opcional --
 # sem ela, transcreve o áudio bruto normalmente).
 noisereduce>=3.0.0
+
+# Clonagem da PRÓPRIA voz do usuário (ver voz/clonagem.py, XTTS v2) --
+# opcional e pesado (baixa um modelo de ~1.8GB na primeira síntese).
+# transformers>=4.57 (o coqui-tts atual precisa da linha 4.x -- transformers
+# 5.x removeu uma função interna que o XTTS ainda usa; se instalar isso
+# depois de já ter uma versão 5.x de transformers instalada, force o
+# downgrade com `pip install "transformers==4.57.6"`).
+#
+# Exige também FFmpeg "full-shared" instalado no sistema (não é um
+# pacote Python -- o `coqui-tts[codec]` usa `torchcodec`, que carrega
+# as DLLs do FFmpeg em tempo de execução, não as embute). No Windows:
+# baixe um build "shared" (ex.: BtbN/FFmpeg-Builds no GitHub, variante
+# "-shared") e adicione a pasta `bin/` (com avcodec-*.dll,
+# avformat-*.dll etc.) ao PATH do usuário -- sem isso, a síntese falha
+# com "Could not load libtorchcodec" na hora de usar, mesmo com o
+# resto instalado certo.
+coqui-tts[cpu,codec]>=0.27.0

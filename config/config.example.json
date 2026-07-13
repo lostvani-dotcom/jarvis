@@ -22,6 +22,7 @@
   "personalidade": {
     "estilo": "ultron",
     "voz_robotica": true,
+    "voz_clonada_ativa": false,
     "tom_voz_robotica": -9,
     "efeito_ultron": true,
     "intensidade_ultron": 0.7,
