@@ -26,8 +26,8 @@ CATALOGO = [
         "nome": "Ultron Companion",
         "categoria": "Produtividade",
         "resumo": "O Ultron no seu bolso -- controla o celular e conversa com o núcleo do PC pela Wi-Fi.",
-        "versaoNome": "1.5",
-        "versaoCodigo": 6,
+        "versaoNome": "1.6",
+        "versaoCodigo": 7,
         "arquivo": "ultron-companion.apk",
     },
     {

@@ -12,14 +12,16 @@ const CATALOGO = [
         id: "ultron-companion",
         nome: "Ultron Companion",
         categoria: "Produtividade",
-        resumo: "O Ultron no seu bolso -- controla o celular e conversa com o núcleo do PC pela Wi-Fi.",
-        descricao: "Chat com o Ultron direto do celular, encaminha notificações (Instagram/WhatsApp/Telegram/Signal/" +
-            "Discord) e responde comandos do aparelho (bateria, lanterna, volume, alarme, localização e mais) " +
-            "mesmo com o app fechado. Boa parte das funções roda 100% offline no próprio celular -- conversa " +
-            "aberta e memória completa pedem o Ultron do PC na mesma rede (ou, se já sincronizado uma vez, " +
-            "conversa direto com a nuvem sem precisar do PC ligado).",
-        versaoNome: "1.5",
-        versaoCodigo: 6,
+        resumo: "O Ultron no seu bolso -- interface de chat estilo ChatGPT, controla o celular e conversa com o núcleo do PC pela Wi-Fi.",
+        descricao: "Chat com o Ultron direto do celular (bolhas de mensagem, campo em pílula -- configuração " +
+            "de conexão/permissões agora numa tela própria, atrás do ícone ⚙), encaminha notificações " +
+            "(Instagram/WhatsApp/Telegram/Signal/Discord) e responde comandos do aparelho (bateria, " +
+            "lanterna, volume, alarme, localização e mais) mesmo com o app fechado. Boa parte das " +
+            "funções roda 100% offline no próprio celular -- conversa aberta e memória completa pedem " +
+            "o Ultron do PC na mesma rede (ou, se já sincronizado uma vez, conversa direto com a nuvem " +
+            "sem precisar do PC ligado).",
+        versaoNome: "1.6",
+        versaoCodigo: 7,
         tamanhoMb: 5.4,
         requisito: "Android 8.0 ou superior",
         arquivo: "apps/ultron-companion.apk",

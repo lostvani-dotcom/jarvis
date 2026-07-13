@@ -3,6 +3,7 @@ package com.jarvis.companion
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -13,8 +14,8 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
-import android.text.Html
-import android.text.TextUtils
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -22,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.jarvis.companion.databinding.ActivityMainBinding
 import java.io.File
 import java.io.FileOutputStream
@@ -30,10 +32,18 @@ import java.net.URL
 import java.util.Locale
 import kotlin.concurrent.thread
 
+/**
+ * Tela principal: só o chat, no espírito do ChatGPT mobile -- bolhas
+ * de mensagem numa lista rolável (ver ChatAdapter), barra de entrada
+ * em formato de pílula, e a engrenagem no topo abre a conexão/
+ * permissões numa tela própria (ver SettingsActivity) em vez de
+ * misturar tudo na tela principal como antes.
+ */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: Prefs
+    private lateinit var chatAdapter: ChatAdapter
     private var speechRecognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var ultimaEntradaFoiVoz = false
@@ -52,29 +62,25 @@ class MainActivity : AppCompatActivity() {
         if (prefs.appLockAtivo && !desbloqueado) {
             binding.root.visibility = View.INVISIBLE
         }
-        binding.hostInput.setText(prefs.host)
-        binding.portInput.setText(prefs.port)
-        binding.tokenInput.setText(prefs.token)
 
-        binding.discoverButton.setOnClickListener { buscarAutomaticamente() }
+        chatAdapter = ChatAdapter()
+        binding.chatRecycler.layoutManager = LinearLayoutManager(this)
+        binding.chatRecycler.adapter = chatAdapter
 
-        binding.saveButton.setOnClickListener {
-            prefs.host = binding.hostInput.text.toString().trim()
-            prefs.port = binding.portInput.text.toString().trim().ifEmpty { "8765" }
-            prefs.token = binding.tokenInput.text.toString().trim()
-            testarConexao()
+        binding.settingsButton.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
-
-        binding.notificationAccessButton.setOnClickListener {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-        }
-
-        binding.usageAccessButton.setOnClickListener {
-            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-        }
-
         binding.sendButton.setOnClickListener { enviarMensagem() }
         binding.micButton.setOnClickListener { iniciarEscuta() }
+        binding.messageInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val temTexto = s?.isNotBlank() == true
+                binding.sendButton.alpha = if (temTexto) 1f else 0.5f
+            }
+        })
+        binding.sendButton.alpha = 0.5f
 
         pedirPermissaoDeNotificacao()
         tts = TextToSpeech(this) { status ->
@@ -84,16 +90,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (prefs.host.isEmpty() || prefs.token.isEmpty()) {
-            adicionarLinha("Ultron: procurando o Ultron na rede automaticamente...")
+            adicionarMensagem("Procurando o Ultron na rede automaticamente...", Remetente.SISTEMA)
             buscarAutomaticamente()
         } else {
-            adicionarLinha(
-                "Ultron: pronto pra conversar. Sem o PC eu já resolvo: bateria, lanterna, " +
+            adicionarMensagem(
+                "Pronto pra conversar. Sem o PC eu já resolvo: bateria, lanterna, " +
                     "volume, não perturbe, brilho, localização, tocar música, abrir app, " +
                     "alarme, timer, ligação, SMS, câmera, pesquisa na web, contas e hora/data " +
                     "(diga \"ajuda\" pra lista completa). Conversa aberta/memória/base de " +
-                    "conhecimento precisam do Ultron do PC na mesma rede. Dica: toque no 🎤 " +
-                    "pra falar -- a resposta vem por voz também.",
+                    "conhecimento precisam do Ultron do PC na mesma rede. Toque no 🎤 pra falar " +
+                    "-- a resposta vem por voz também.",
+                Remetente.ULTRON,
             )
             checarAtualizacao()
             // Renova a config de IA em silêncio a cada abertura com o PC
@@ -199,7 +206,7 @@ class MainActivity : AppCompatActivity() {
                 prefs.appLockAtivo = true
                 desbloqueado = true // acabou de configurar, não trava agora
                 Toast.makeText(this, "Bloqueio ativado.", Toast.LENGTH_SHORT).show()
-                adicionarLinha("Ultron: bloqueio ativado -- a partir de agora só você me abre.")
+                adicionarMensagem("Bloqueio ativado -- a partir de agora só você me abre.", Remetente.SISTEMA)
             }
             .setNegativeButton("Agora não", null)
             .show()
@@ -231,46 +238,22 @@ class MainActivity : AppCompatActivity() {
      * Discovery.kt / server/discovery.py) e são salvos e testados na
      * hora, sem precisar tocar em mais nada. */
     private fun buscarAutomaticamente() {
-        binding.discoverButton.isEnabled = false
-        binding.discoverButton.text = "Procurando..."
         thread {
             val resultado = Discovery.buscar()
             runOnUiThread {
-                binding.discoverButton.isEnabled = true
-                binding.discoverButton.text = "Buscar o Ultron automaticamente"
                 if (resultado != null) {
-                    binding.hostInput.setText(resultado.ip)
-                    binding.portInput.setText(resultado.porta.toString())
-                    binding.tokenInput.setText(resultado.token)
                     prefs.host = resultado.ip
                     prefs.port = resultado.porta.toString()
                     prefs.token = resultado.token
-                    adicionarLinha("Ultron: encontrado e conectado em ${resultado.ip}:${resultado.porta}!")
-                    Toast.makeText(this, "Conectado ao Ultron!", Toast.LENGTH_SHORT).show()
+                    adicionarMensagem("Encontrado e conectado em ${resultado.ip}:${resultado.porta}!", Remetente.SISTEMA)
                     checarAtualizacao()
                     sincronizarIaConfig()
                 } else {
-                    adicionarLinha(
-                        "Ultron: não encontrei nenhum Ultron na rede (confirme que ele está " +
-                            "rodando, na mesma Wi-Fi). Pode digitar IP/porta/token manualmente também.",
+                    adicionarMensagem(
+                        "Não encontrei nenhum Ultron na rede (confirme que ele está rodando, na " +
+                            "mesma Wi-Fi). Toque na ⚙ pra configurar IP/porta/token manualmente.",
+                        Remetente.SISTEMA,
                     )
-                }
-            }
-        }
-    }
-
-    private fun testarConexao() {
-        thread {
-            val ok = JarvisClient.status(prefs.baseUrl)
-            runOnUiThread {
-                Toast.makeText(
-                    this,
-                    if (ok) "Conectado ao Ultron!" else "Não consegui alcançar o Ultron nesse endereço.",
-                    Toast.LENGTH_SHORT,
-                ).show()
-                if (ok) {
-                    checarAtualizacao()
-                    sincronizarIaConfig()
                 }
             }
         }
@@ -290,9 +273,10 @@ class MainActivity : AppCompatActivity() {
             prefs.iaAuthHeader = cfg.optString("auth_header", "Authorization")
             prefs.iaSystemPrompt = cfg.optString("system_prompt", "")
             runOnUiThread {
-                adicionarLinha(
-                    "Ultron: conversa independente ativada -- agora dá pra conversar comigo " +
-                        "mesmo com o PC desligado (só preciso de internet no celular).",
+                adicionarMensagem(
+                    "Conversa independente ativada -- agora dá pra conversar comigo mesmo com o " +
+                        "PC desligado (só preciso de internet no celular).",
+                    Remetente.SISTEMA,
                 )
             }
         }
@@ -313,9 +297,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (versaoServidor > versaoAtual) {
                     runOnUiThread {
-                        adicionarLinha(
-                            "Ultron: tem uma atualização do app disponível (versão $nomeServidor). " +
-                                "Baixando e instalando sozinho...",
+                        adicionarMensagem(
+                            "Tem uma atualização do app disponível (versão $nomeServidor). Baixando " +
+                                "e instalando sozinho...",
+                            Remetente.SISTEMA,
                         )
                     }
                     baixarEInstalarAtualizacao()
@@ -338,7 +323,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { instalarApk(arquivo) }
         } catch (e: Exception) {
             runOnUiThread {
-                adicionarLinha("Ultron: falha ao baixar a atualização (${e.message}).")
+                adicionarMensagem("Falha ao baixar a atualização (${e.message}).", Remetente.ERRO)
             }
         }
     }
@@ -353,9 +338,10 @@ class MainActivity : AppCompatActivity() {
      * que a atualização "não fez nada". */
     private fun instalarApk(arquivo: File) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
-            adicionarLinha(
-                "Ultron: preciso da permissão \"Instalar apps desconhecidos\" pra concluir a " +
-                    "atualização sozinho -- abrindo a tela pra você autorizar.",
+            adicionarMensagem(
+                "Preciso da permissão \"Instalar apps desconhecidos\" pra concluir a atualização " +
+                    "sozinho -- abrindo a tela pra você autorizar.",
+                Remetente.SISTEMA,
             )
             try {
                 val i = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
@@ -462,7 +448,7 @@ class MainActivity : AppCompatActivity() {
         if (textoForcado == null) binding.messageInput.setText("")
         val faladoPorVoz = ultimaEntradaFoiVoz
         ultimaEntradaFoiVoz = false
-        adicionarLinha("Você: $texto")
+        adicionarMensagem(texto, Remetente.USUARIO)
 
         // Comandos de controle do PRÓPRIO celular (bateria, lanterna,
         // volume, não perturbe, brilho, localização, tocar música, hora)
@@ -476,7 +462,7 @@ class MainActivity : AppCompatActivity() {
             null
         }
         if (respostaLocal != null) {
-            adicionarLinha("Ultron: $respostaLocal")
+            adicionarMensagem(respostaLocal, Remetente.ULTRON)
             if (faladoPorVoz) falarResposta(respostaLocal)
             return
         }
@@ -485,7 +471,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val resposta = JarvisClient.chat(prefs.baseUrl, prefs.token, texto)
                 runOnUiThread {
-                    adicionarLinha("Ultron: $resposta")
+                    adicionarMensagem(resposta, Remetente.ULTRON)
                     if (faladoPorVoz) falarResposta(resposta)
                 }
             } catch (e: Exception) {
@@ -497,63 +483,39 @@ class MainActivity : AppCompatActivity() {
                     try {
                         val resposta = CloudAI.conversar(prefs, texto)
                         runOnUiThread {
-                            adicionarLinha("Ultron: $resposta")
+                            adicionarMensagem(resposta, Remetente.ULTRON)
                             if (faladoPorVoz) falarResposta(resposta)
                         }
                         return@thread
                     } catch (e2: Exception) {
                         runOnUiThread {
-                            adicionarLinha(
-                                "[erro] PC fora de alcance e a conversa direta com a nuvem também " +
-                                    "falhou (${e2.message}) -- confira a internet do celular. " +
-                                    "Comandos do aparelho seguem funcionando: diga \"ajuda\".",
+                            adicionarMensagem(
+                                "PC fora de alcance e a conversa direta com a nuvem também falhou " +
+                                    "(${e2.message}) -- confira a internet do celular. Comandos do " +
+                                    "aparelho seguem funcionando: diga \"ajuda\".",
+                                Remetente.ERRO,
                             )
                         }
                         return@thread
                     }
                 }
                 runOnUiThread {
-                    adicionarLinha(
-                        "[erro] Isso precisa do Ultron rodando no PC (mesma rede) -- não consegui " +
-                            "alcançar (${e.message}). Comandos do próprio celular funcionam mesmo " +
-                            "assim: diga \"ajuda\" pra ver a lista (bateria, lanterna, alarme, " +
-                            "timer, ligação, SMS, música, câmera e mais). Pra conversar sem o PC, " +
-                            "conecte uma vez com o PC ligado que eu ativo a conversa independente.",
+                    adicionarMensagem(
+                        "Isso precisa do Ultron rodando no PC (mesma rede) -- não consegui alcançar " +
+                            "(${e.message}). Comandos do próprio celular funcionam mesmo assim: diga " +
+                            "\"ajuda\" pra ver a lista. Pra conversar sem o PC, conecte uma vez com o " +
+                            "PC ligado que eu ativo a conversa independente.",
+                        Remetente.ERRO,
                     )
                 }
             }
         }
     }
 
-    /** Colore o prefixo ("Você:"/"Ultron:"/"[erro]") pra dar a mesma
-     * distinção visual por remetente que a GUI do PC tem (gui/app.py) --
-     * mantém a mesma assinatura de sempre pra não precisar mexer em
-     * cada lugar que já chama adicionarLinha().
-     *
-     * IMPORTANTE: `Html.fromHtml` trata a entrada como HTML de verdade,
-     * então uma quebra de linha "\n" comum dentro da mensagem (muito
-     * comum -- "linha do tempo", listas de vídeos/programas etc. vêm
-     * multi-linha) é colapsada num espaço, igual em qualquer HTML. Por
-     * isso convertemos "\n" -> "<br>" DEPOIS de escapar o HTML, senão a
-     * resposta inteira do Ultron vira uma linha só, ilegível. */
-    private fun adicionarLinha(linha: String) {
-        val cor = when {
-            linha.startsWith("Você:") -> "#EAA79E"
-            linha.startsWith("Ultron:") -> "#FF5F52"
-            linha.startsWith("[erro]") -> "#F87171"
-            else -> null
+    private fun adicionarMensagem(texto: String, remetente: Remetente) {
+        chatAdapter.adicionar(texto, remetente)
+        binding.chatRecycler.post {
+            binding.chatRecycler.scrollToPosition(chatAdapter.itemCount - 1)
         }
-        val htmlLinha = if (cor != null) {
-            val partes = linha.split(":", limit = 2)
-            val rotulo = TextUtils.htmlEncode(partes[0])
-            val resto = TextUtils.htmlEncode(if (partes.size > 1) partes[1] else "").replace("\n", "<br>")
-            "<font color=\"$cor\"><b>$rotulo:</b></font>$resto"
-        } else {
-            TextUtils.htmlEncode(linha).replace("\n", "<br>")
-        }
-        binding.chatLog.append(Html.fromHtml("$htmlLinha<br><br>", Html.FROM_HTML_MODE_LEGACY))
-        binding.chatScroll.post { binding.chatScroll.fullScroll(android.view.View.FOCUS_DOWN) }
-        binding.chatLog.alpha = 0.5f
-        binding.chatLog.animate().alpha(1f).setDuration(220).start()
     }
 }

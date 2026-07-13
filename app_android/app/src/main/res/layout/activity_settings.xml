@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_app_gradient">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="22dp">
+
+            <Button
+                android:id="@+id/backButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:text="←"
+                android:textColor="#E5E7EB"
+                android:stateListAnimator="@null"
+                android:backgroundTint="@null"
+                android:background="@drawable/bg_button_secondary" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:text="Configurações"
+                android:textColor="#6FE0FF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CONEXÃO COM O ULTRON"
+            android:textColor="#7C8798"
+            android:textSize="11sp"
+            android:letterSpacing="0.12"
+            android:layout_marginBottom="10dp" />
+
+        <Button
+            android:id="@+id/discoverButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:text="Buscar o Ultron automaticamente"
+            android:textColor="#04201F"
+            android:textAllCaps="false"
+            android:textStyle="bold"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_button_primary" />
+
+        <EditText
+            android:id="@+id/hostInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="IP do PC ou URL remota (https://...)"
+            android:inputType="text"
+            android:textColorHint="#7C8798"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/bg_input_field"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/portInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Porta"
+            android:text="8765"
+            android:inputType="number"
+            android:textColorHint="#7C8798"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/bg_input_field"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/tokenInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Token (config.json -&gt; servidor.token)"
+            android:inputType="textPassword"
+            android:textColorHint="#7C8798"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/bg_input_field"
+            android:layout_marginBottom="14dp" />
+
+        <Button
+            android:id="@+id/saveButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Salvar e testar"
+            android:textColor="#E5E7EB"
+            android:textAllCaps="false"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_button_secondary"
+            android:layout_marginBottom="28dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PERMISSÕES"
+            android:textColor="#7C8798"
+            android:textSize="11sp"
+            android:letterSpacing="0.12"
+            android:layout_marginBottom="10dp" />
+
+        <Button
+            android:id="@+id/notificationAccessButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Notificações"
+            android:textColor="#E5E7EB"
+            android:textAllCaps="false"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_button_secondary" />
+
+        <Button
+            android:id="@+id/usageAccessButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Acesso ao uso"
+            android:textColor="#E5E7EB"
+            android:textAllCaps="false"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_button_secondary" />
+
+    </LinearLayout>
+</ScrollView>
