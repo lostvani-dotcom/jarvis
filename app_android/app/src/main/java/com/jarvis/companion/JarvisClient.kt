@@ -150,4 +150,32 @@ object JarvisClient {
         val resposta = requestBinario(baseUrl, "/visao/identificar", token, "image/jpeg", jpegBytes)
         return resposta.optJSONArray("rostos") ?: JSONArray()
     }
+
+    /** Baixa um screenshot cru (JPEG) da tela do PC agora -- ver
+     * server/http_server.py:/tela/atual e visao/screen.py. Usado pela
+     * tela "Ver tela do PC" (ScreenViewActivity), via polling curto. */
+    fun getScreenshot(baseUrl: String, token: String): ByteArray {
+        val conn = URL("$baseUrl/tela/atual").openConnection() as HttpURLConnection
+        try {
+            conn.connectTimeout = 6000
+            conn.readTimeout = 10000
+            if (token.isNotEmpty()) conn.setRequestProperty("Authorization", "Bearer $token")
+            val status = conn.responseCode
+            if (status !in 200..299) {
+                val erro = conn.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
+                throw JarvisException("erro HTTP $status $erro")
+            }
+            return conn.inputStream.use { it.readBytes() }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** Estatísticas de uso agregadas (ver automacao/estatisticas.py e
+     * server/http_server.py:/estatisticas) -- total de mensagens
+     * processadas e os plugins/recursos que mais responderam, num
+     * período de `dias` dias. */
+    fun getEstatisticas(baseUrl: String, token: String, dias: Int = 7): JSONObject {
+        return request(baseUrl, "/estatisticas?dias=$dias", "GET", token)
+    }
 }

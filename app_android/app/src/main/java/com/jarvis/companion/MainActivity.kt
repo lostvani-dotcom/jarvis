@@ -42,6 +42,13 @@ import kotlin.concurrent.thread
  */
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        /** Extra do Intent -- ver VolumeTripleClickService.kt (ativação
+         * por hardware: 3 toques no botão de baixar volume abrem o app
+         * já ouvindo, sem precisar tocar em nada na tela). */
+        const val EXTRA_AUTO_INICIAR_ESCUTA = "auto_iniciar_escuta"
+    }
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: Prefs
     private lateinit var chatAdapter: ChatAdapter
@@ -143,6 +150,20 @@ class MainActivity : AppCompatActivity() {
         // Convida a proteger o app na primeira abertura (depois do
         // onboarding acima) -- só uma vez, sem insistir.
         binding.root.post { oferecerBloqueioApp() }
+
+        // Sem bloqueio ativo, pode escutar assim que a tela abrir; COM
+        // bloqueio, só depois de autenticar (ver onStart) -- nunca antes,
+        // senão o atalho de hardware furaria o bloqueio do app.
+        if (!prefs.appLockAtivo) processarAutoEscuta()
+    }
+
+    /** Ver EXTRA_AUTO_INICIAR_ESCUTA -- chamado só uma vez por Intent
+     * (limpa o extra depois), pra não reiniciar a escuta sozinho de
+     * novo numa rotação de tela ou ao voltar de outra Activity. */
+    private fun processarAutoEscuta() {
+        if (!intent.getBooleanExtra(EXTRA_AUTO_INICIAR_ESCUTA, false)) return
+        intent.removeExtra(EXTRA_AUTO_INICIAR_ESCUTA)
+        binding.root.post { iniciarEscuta() }
     }
 
     override fun onStart() {
@@ -157,6 +178,7 @@ class MainActivity : AppCompatActivity() {
                 onSucesso = {
                     desbloqueado = true
                     binding.root.visibility = View.VISIBLE
+                    processarAutoEscuta()
                 },
                 onFalha = {
                     Toast.makeText(this, "Acesso negado.", Toast.LENGTH_SHORT).show()

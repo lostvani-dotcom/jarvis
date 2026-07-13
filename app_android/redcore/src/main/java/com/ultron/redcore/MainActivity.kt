@@ -34,13 +34,20 @@ import kotlin.concurrent.thread
 private const val PAGINA_INICIAL = "https://www.google.com/"
 private const val LARGURA_MAX_TITULO = 18
 
+/** Mesmo "usuário padrão" usado em todo o resto do projeto quando não
+ * há login/multi-perfil de verdade (ver server/http_server.py e os
+ * outros módulos do pacote automacao) -- favoritos e histórico do
+ * celular caem no mesmo balde do RedCore do PC. */
+private const val USER_ID_PADRAO = "default_user"
+
 /**
  * RedCore Mobile: versão leve do navegador do Ultron (gui/redcore.py,
  * no PC) pro celular -- abas, barra de endereço com busca embutida,
- * voltar/avançar/recarregar, favoritos e sincronização opcional de
- * histórico com o PC (ver Prefs.kt/RedCoreClient.kt), mesmo visual
- * (fundo quase preto, acento vermelho). Bloqueio de anúncios e aba
- * privada continuam exclusivos do RedCore do PC por enquanto.
+ * voltar/avançar/recarregar, bloqueio de anúncios/rastreadores,
+ * favoritos sincronizados com o PC nos dois sentidos e sincronização
+ * opcional de histórico (ver Prefs.kt/RedCoreClient.kt/AdBlock.kt),
+ * mesmo visual (fundo quase preto, acento vermelho). Aba privada
+ * continua exclusiva do RedCore do PC por enquanto.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -134,6 +141,16 @@ class MainActivity : AppCompatActivity() {
                     if (!url.isNullOrBlank()) {
                         sincronizarHistoricoSeAtivo(url, view?.title ?: "")
                     }
+                }
+
+                override fun shouldInterceptRequest(
+                    view: WebView?, request: android.webkit.WebResourceRequest?,
+                ): android.webkit.WebResourceResponse? {
+                    val alvo = request?.url?.toString()
+                    if (prefs.bloqueioAnuncios && alvo != null && AdBlock.bloqueado(alvo)) {
+                        return AdBlock.respostaVazia()
+                    }
+                    return super.shouldInterceptRequest(view, request)
                 }
             }
             webChromeClient = object : WebChromeClient() {
@@ -248,6 +265,7 @@ class MainActivity : AppCompatActivity() {
         val opcoes = arrayOf(
             if (jaFavorito) "☆ Remover dos favoritos" else "⭐ Favoritar esta página",
             "Meus favoritos",
+            if (prefs.bloqueioAnuncios) "🛡 Bloqueio de anúncios: ligado" else "🛡 Bloqueio de anúncios: desligado",
             "Configurações",
         )
         AlertDialog.Builder(this)
@@ -255,29 +273,59 @@ class MainActivity : AppCompatActivity() {
                 when (which) {
                     0 -> alternarFavoritoAtual()
                     1 -> mostrarFavoritos()
-                    2 -> mostrarConfiguracoes()
+                    2 -> alternarBloqueioAnuncios()
+                    3 -> mostrarConfiguracoes()
                 }
             }
             .show()
     }
 
+    private fun alternarBloqueioAnuncios() {
+        prefs.bloqueioAnuncios = !prefs.bloqueioAnuncios
+        Toast.makeText(
+            this,
+            if (prefs.bloqueioAnuncios) "Bloqueio de anúncios ligado." else "Bloqueio de anúncios desligado.",
+            Toast.LENGTH_SHORT,
+        ).show()
+        abaAtual()?.webView?.reload()
+    }
+
     private fun alternarFavoritoAtual() {
         val webView = abaAtual()?.webView ?: return
         val url = webView.url ?: return
-        val agoraFavorito = prefs.alternarFavorito(webView.title ?: url, url)
+        val titulo = webView.title ?: url
+        val agoraFavorito = prefs.alternarFavorito(titulo, url)
         Toast.makeText(
             this,
             if (agoraFavorito) "Adicionado aos favoritos." else "Removido dos favoritos.",
             Toast.LENGTH_SHORT,
         ).show()
+        // Sincroniza com o PC em segundo plano, sem bloquear a UI --
+        // favoritar é deliberado (diferente de histórico), então não é
+        // opt-in: sincroniza sempre que o PC estiver configurado.
+        if (prefs.host.isNotEmpty()) {
+            thread {
+                try {
+                    val acao = if (agoraFavorito) "adicionar" else "remover"
+                    RedCoreClient.sincronizarFavoritoPC(prefs.baseUrl, prefs.token, USER_ID_PADRAO, url, titulo, acao)
+                } catch (e: Exception) {
+                    // melhor-esforço -- PC fora de alcance agora, o favorito
+                    // continua salvo localmente, só não propagou desta vez.
+                }
+            }
+        }
     }
 
     /** Lista os favoritos com checkbox (marcado = mantém, desmarcado =
      * remove ao confirmar) -- toque no texto do item navega direto pra
      * ele, mesmo diálogo servindo pra "abrir" e "gerenciar" sem
-     * precisar de uma tela/RecyclerView dedicada só pra isso. */
+     * precisar de uma tela/RecyclerView dedicada só pra isso. Mostra
+     * os favoritos LOCAIS na hora (sem esperar rede) -- a sincronização
+     * com o PC roda em paralelo e só avisa se trouxe algo novo, pra
+     * abrir o menu de novo pegar a lista já mesclada. */
     private fun mostrarFavoritos() {
         val favoritos = prefs.listarFavoritos()
+        sincronizarFavoritosDoPc()
         if (favoritos.isEmpty()) {
             Toast.makeText(this, "Nenhum favorito ainda -- toque em ⋮ numa página pra favoritar.", Toast.LENGTH_LONG).show()
             return
@@ -291,6 +339,30 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("Gerenciar") { _, _ -> gerenciarFavoritos(favoritos) }
             .setPositiveButton("Fechar", null)
             .show()
+    }
+
+    /** Puxa os favoritos salvos no RedCore do PC e mescla com os
+     * locais (só adiciona URLs que ainda não existem aqui -- nunca
+     * remove um favorito local só porque o PC não tem ele, pra não
+     * apagar por engano algo que só existia neste celular). */
+    private fun sincronizarFavoritosDoPc() {
+        if (prefs.host.isEmpty()) return
+        thread {
+            try {
+                val doPc = RedCoreClient.listarFavoritosPC(prefs.baseUrl, prefs.token, USER_ID_PADRAO)
+                val locaisUrls = prefs.listarFavoritos().map { it.url }.toSet()
+                val novos = doPc.filter { it.url !in locaisUrls }
+                if (novos.isNotEmpty()) {
+                    val combinados = prefs.listarFavoritos() + novos
+                    prefs.salvarFavoritos(combinados)
+                    runOnUiThread {
+                        Toast.makeText(this, "${novos.size} favorito(s) sincronizado(s) do PC.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                // melhor-esforço -- PC fora de alcance, segue só com os locais
+            }
+        }
     }
 
     private fun gerenciarFavoritos(favoritos: List<Favorito>) {

@@ -63,6 +63,10 @@
             android:name=".SettingsActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ScreenViewActivity"
+            android:exported="false" />
+
         <service
             android:name=".NotifyListenerService"
             android:label="Ultron Companion"
@@ -71,6 +75,23 @@
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
+        </service>
+
+        <!-- Ativação por hardware (3 toques no volume, ver
+             VolumeTripleClickService.kt); exige ativação manual em
+             Configurações > Acessibilidade (SettingsActivity guia pra lá),
+             o Android não deixa nenhum app ligar isso sozinho. -->
+        <service
+            android:name=".VolumeTripleClickService"
+            android:label="Ultron (atalho de volume)"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
         </service>
 
         <!-- Necessário pra instalar o APK baixado por dentro do app

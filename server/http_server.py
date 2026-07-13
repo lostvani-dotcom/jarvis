@@ -69,6 +69,16 @@ Endpoints:
     GET  /backup/completo             -> baixa um .zip com banco de dados + config +
         chave de criptografia (com auth -- é o backup mais sensível que existe, nunca
         sem token). Ver seguranca/backup.py e seguranca/restaurar_backup.py.
+    GET  /tela/atual                  -> JPEG cru com a tela do PC agora (com auth --
+        é o dado mais sensível de todos os que este servidor expõe. Ver visao/screen.py.
+        Usado pela tela "Ver tela do PC" do Companion, via polling curto).
+    GET  /redcore/favoritos?user_id=  -> {"favoritos": [{"url","titulo"}, ...]} (com auth
+        -- ver automacao/redcore_favoritos.py)
+    POST /redcore/favoritos {"url","titulo","user_id","acao":"adicionar"|"remover"}
+        -> {"ok": true} (com auth -- sincroniza favoritos do RedCore Mobile com o
+        RedCore do PC, nos dois sentidos)
+    GET  /estatisticas?dias=7         -> estatísticas de uso agregadas (com auth --
+        ver automacao/estatisticas.py)
 """
 
 import json
@@ -79,6 +89,7 @@ import secrets
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 
 from automacao.notification_inbox import registrar as registrar_notificacao
 from automacao.phone_commands import pegar_comando_pendente, submeter_resultado
@@ -384,6 +395,70 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _enviar_tela_atual(self):
+        """GET /tela/atual -- screenshot cru em JPEG (visao/screen.py,
+        já usado por outras funções de visão do Ultron). Dado mais
+        sensível que este servidor expõe (mostra literalmente tudo que
+        está na tela), por isso SEMPRE exige auth, sem exceção alguma
+        (diferente de /app.apk e afins)."""
+        try:
+            import cv2
+            from visao import screen
+
+            if not screen.available():
+                self._send_json(503, {"erro": "captura de tela indisponível no servidor (falta 'mss')"})
+                return
+            frame = screen.screenshot()
+            ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            if not ok:
+                self._send_json(500, {"erro": "falha ao codificar a captura de tela"})
+                return
+            body = buf.tobytes()
+        except Exception as e:
+            log.warning("falha ao capturar tela pro celular: %s", e)
+            self._send_json(500, {"erro": str(e)})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "image/jpeg")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _listar_favoritos_redcore(self):
+        from automacao import redcore_favoritos
+        query = parse_qs(urlparse(self.path).query)
+        user_id = (query.get("user_id") or ["default_user"])[0]
+        favoritos = [
+            {"url": f["url"], "titulo": f.get("titulo", "")}
+            for f in redcore_favoritos.listar(user_id)
+        ]
+        self._send_json(200, {"favoritos": favoritos})
+
+    def _alterar_favorito_redcore(self, dados: dict):
+        from automacao import redcore_favoritos
+        url = (dados.get("url") or "").strip()
+        if not url:
+            self._send_json(400, {"erro": "campo 'url' vazio"})
+            return
+        user_id = dados.get("user_id") or "default_user"
+        titulo = dados.get("titulo", "")
+        acao = dados.get("acao", "adicionar")
+        if acao == "remover":
+            redcore_favoritos.remover(user_id, url)
+        else:
+            redcore_favoritos.adicionar(user_id, url, titulo)
+        self._send_json(200, {"ok": True})
+
+    def _enviar_estatisticas(self):
+        from automacao import estatisticas
+        query = parse_qs(urlparse(self.path).query)
+        try:
+            dias = int((query.get("dias") or ["7"])[0])
+        except ValueError:
+            dias = 7
+        dias = max(1, min(dias, 90))
+        self._send_json(200, estatisticas.resumo(dias=dias))
+
     def _read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", 0) or 0)
         if length == 0:
@@ -472,6 +547,27 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(200, {"comando": pegar_comando_pendente()})
             return
 
+        if self.path == "/tela/atual":
+            if not self._autorizado():
+                self._send_json(401, {"erro": "token inválido"})
+                return
+            self._enviar_tela_atual()
+            return
+
+        if self.path.startswith("/redcore/favoritos"):
+            if not self._autorizado():
+                self._send_json(401, {"erro": "token inválido"})
+                return
+            self._listar_favoritos_redcore()
+            return
+
+        if self.path.startswith("/estatisticas"):
+            if not self._autorizado():
+                self._send_json(401, {"erro": "token inválido"})
+                return
+            self._enviar_estatisticas()
+            return
+
         if self.path == "/ia/config":
             # Entrega ao app pareado a configuração do provedor de IA
             # (URL/chave/modelo) + o prompt de personalidade, pra ele
@@ -527,6 +623,10 @@ class _Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 log.warning("falha ao sincronizar histórico do RedCore Mobile: %s", e)
                 self._send_json(500, {"erro": str(e)})
+            return
+
+        if self.path == "/redcore/favoritos":
+            self._alterar_favorito_redcore(dados)
             return
 
         if self.path == "/chat":

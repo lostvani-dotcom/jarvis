@@ -19,6 +19,7 @@ Comandos:
     "minhas macros" / "quais macros eu tenho"
     "apaga a macro <nome>" / "remove a macro <nome>"
     "agenda a macro <nome> a cada 30 minutos" / "... a cada 2 horas"
+    "agenda a macro <nome> todo dia às 7h" / "... todos os dias às 21:30"
     "cancela o agendamento da macro <nome>"
 """
 
@@ -32,6 +33,14 @@ _CRIAR_RE = re.compile(r"\bcri[ae]\w*\s+uma\s+macro\s+(.+?):\s*(.+)", re.IGNOREC
 _RODAR_RE = re.compile(r"\b(?:execut[ae]|rod[ae])\w*\s+a\s+macro\s+(.+)", re.IGNORECASE)
 _LISTAR_RE = re.compile(r"\bminhas\s+macros\b|\bquais\s+macros\b|\blist[ae]\w*\s+.*\bmacros\b", re.IGNORECASE)
 _REMOVER_RE = re.compile(r"\b(?:apag[ae]|remov[ae])\w*\s+a\s+macro\s+(.+)", re.IGNORECASE)
+# Checada ANTES de _AGENDAR_RE (intervalo) -- "todo dia às 7h" tem uma
+# frase totalmente diferente ("a cada N minutos/horas"), então não há
+# ambiguidade real entre as duas, mas a ordem de checagem no handle()
+# ainda importa pra sempre dar prioridade à mais específica primeiro.
+_AGENDAR_DIARIO_RE = re.compile(
+    r"\bagend[ae]\w*\s+a\s+macro\s+(.+?)\s+tod[oa]s?\s+(?:os\s+)?dias?\s+(?:[àa]s?)\s*(\d{1,2})(?:[:h](\d{2}))?\s*h?\b",
+    re.IGNORECASE,
+)
 _AGENDAR_RE = re.compile(
     r"\bagend[ae]\w*\s+a\s+macro\s+(.+?)\s+a\s+cada\s+(\d+)\s*(minutos?|min|horas?|h)\b", re.IGNORECASE
 )
@@ -52,7 +61,8 @@ class MacrosPlugin(BasePlugin):
     def matches(self, text: str) -> bool:
         t = text.strip()
         return bool(
-            _CRIAR_RE.search(t) or _AGENDAR_RE.search(t) or _CANCELAR_AGENDA_RE.search(t)
+            _CRIAR_RE.search(t) or _AGENDAR_DIARIO_RE.search(t) or _AGENDAR_RE.search(t)
+            or _CANCELAR_AGENDA_RE.search(t)
             or _REMOVER_RE.search(t) or _LISTAR_RE.search(t) or _RODAR_RE.search(t)
         )
 
@@ -60,6 +70,10 @@ class MacrosPlugin(BasePlugin):
         t = text.strip()
         user_id = context["user_id"]
         jarvis = context.get("jarvis")
+
+        m = _AGENDAR_DIARIO_RE.search(t)
+        if m:
+            return self._agendar_diaria(jarvis, user_id, m.group(1), int(m.group(2)), int(m.group(3) or 0))
 
         m = _AGENDAR_RE.search(t)
         if m:
@@ -130,7 +144,12 @@ class MacrosPlugin(BasePlugin):
             )
         linhas = []
         for m in lista:
-            agenda = f" (agendada a cada {m['intervalo_segundos']}s)" if m.get("intervalo_segundos") else ""
+            if m.get("hora_diaria"):
+                agenda = f" (agendada todo dia às {m['hora_diaria']})"
+            elif m.get("intervalo_segundos"):
+                agenda = f" (agendada a cada {m['intervalo_segundos']}s)"
+            else:
+                agenda = ""
             linhas.append(f"- {m['nome']}{agenda}: {', '.join(m['passos'])}")
         return Answer("Suas macros:\n" + "\n".join(linhas), Confidence.CONFIRMED)
 
@@ -152,6 +171,22 @@ class MacrosPlugin(BasePlugin):
             return Answer(str(e), Confidence.GUESS)
         return Answer(
             f"Agendei a macro '{nome}' pra rodar sozinha a cada {quantidade} {unidade}. "
+            f'Diga "cancela o agendamento da macro {nome}" pra parar.',
+            Confidence.CONFIRMED,
+        )
+
+    def _agendar_diaria(self, jarvis, user_id: str, nome: str, hora: int, minuto: int):
+        nome = _limpar_nome(nome)
+        if jarvis is None:
+            return Answer("Não consegui acessar o Ultron pra agendar a macro agora.", Confidence.GUESS)
+        if not (0 <= hora <= 23 and 0 <= minuto <= 59):
+            return Answer("Esse horário não existe -- use algo como 'às 7h' ou 'às 21:30'.", Confidence.GUESS)
+        try:
+            macros.agendar_macro_diaria(jarvis, user_id, nome, hora, minuto)
+        except ValueError as e:
+            return Answer(str(e), Confidence.GUESS)
+        return Answer(
+            f"Agendei a macro '{nome}' pra rodar sozinha todo dia às {hora:02d}:{minuto:02d}. "
             f'Diga "cancela o agendamento da macro {nome}" pra parar.',
             Confidence.CONFIRMED,
         )

@@ -78,4 +78,46 @@ object RedCoreClient {
             conn.disconnect()
         }
     }
+
+    /** Favoritos salvos no RedCore do PC (ver automacao/
+     * redcore_favoritos.py) -- não opt-in feito diferente do histórico:
+     * favoritar é uma ação deliberada e pontual (não navegação passiva
+     * registrada o tempo todo), então sincroniza sempre que o PC
+     * estiver configurado, sem precisar de um interruptor extra. */
+    fun listarFavoritosPC(baseUrl: String, token: String, userId: String): List<Favorito> {
+        val conn = URL("$baseUrl/redcore/favoritos?user_id=$userId").openConnection() as HttpURLConnection
+        try {
+            conn.connectTimeout = 6000
+            conn.readTimeout = 10000
+            if (token.isNotEmpty()) conn.setRequestProperty("Authorization", "Bearer $token")
+            val status = conn.responseCode
+            val stream = if (status in 200..299) conn.inputStream else conn.errorStream
+            val texto = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: "{}"
+            if (status !in 200..299) throw ClientException("erro HTTP $status")
+            val array = JSONObject(texto).optJSONArray("favoritos") ?: JSONArray()
+            return (0 until array.length()).map { i ->
+                val o = array.getJSONObject(i)
+                Favorito(o.optString("titulo"), o.optString("url"))
+            }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    fun sincronizarFavoritoPC(baseUrl: String, token: String, userId: String, url: String, titulo: String, acao: String) {
+        val conn = URL("$baseUrl/redcore/favoritos").openConnection() as HttpURLConnection
+        try {
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 6000
+            conn.readTimeout = 10000
+            if (token.isNotEmpty()) conn.setRequestProperty("Authorization", "Bearer $token")
+            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            conn.doOutput = true
+            val corpo = JSONObject().put("url", url).put("titulo", titulo).put("user_id", userId).put("acao", acao)
+            conn.outputStream.use { it.write(corpo.toString().toByteArray(Charsets.UTF_8)) }
+            conn.responseCode
+        } finally {
+            conn.disconnect()
+        }
+    }
 }

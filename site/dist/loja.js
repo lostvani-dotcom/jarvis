@@ -17,14 +17,16 @@ const CATALOGO = [
             "conversas num painel deslizante estilo ChatGPT -- configuração de conexão/permissões numa " +
             "tela própria, atrás do ícone ⚙), encaminha notificações (Instagram/WhatsApp/Telegram/" +
             "Signal/Discord) e responde comandos do aparelho (bateria, lanterna, volume, alarme, " +
-            "localização e mais) mesmo com o app fechado. Agora também grava amostra de voz pelo " +
-            "microfone do celular (pra clonagem de voz) e identifica rostos cadastrados usando a câmera " +
-            "do celular -- os dois processados pelo Ultron do PC. Boa parte das funções roda 100% " +
+            "localização e mais) mesmo com o app fechado. Grava amostra de voz pelo microfone do " +
+            "celular (pra clonagem de voz) e identifica rostos cadastrados usando a câmera do celular " +
+            "-- os dois processados pelo Ultron do PC. Agora também: tela do PC ao vivo (\"Ver a tela " +
+            "do PC\"), atalho de hardware (3 toques no volume abrem o app já ouvindo, via " +
+            "Acessibilidade) e um painel de estatísticas de uso. Boa parte das funções roda 100% " +
             "offline no próprio celular. Modo nuvem (conversar sem o PC ligado) com memória persistente " +
             "e sincronização automática em segundo plano -- conversa aberta com acesso à memória/base " +
             "de conhecimento completa continua exigindo o Ultron do PC na mesma rede.",
-        versaoNome: "1.8",
-        versaoCodigo: 9,
+        versaoNome: "1.9",
+        versaoCodigo: 10,
         tamanhoMb: 5.4,
         requisito: "Android 8.0 ou superior",
         arquivo: "apps/ultron-companion.apk",
@@ -52,14 +54,15 @@ const CATALOGO = [
         id: "redcore-mobile",
         nome: "RedCore",
         categoria: "Navegador",
-        resumo: "O navegador do Ultron, agora no celular -- abas, busca embutida, favoritos, mesmo visual do PC.",
+        resumo: "O navegador do Ultron, agora no celular -- abas, busca embutida, favoritos sincronizados com o PC, bloqueio de anúncios.",
         descricao: "Versão leve do RedCore do PC (gui/redcore.py): abas de verdade, barra de endereço que também " +
-            "pesquisa no Google, voltar/avançar/recarregar, favoritos (locais neste celular, no menu ⋮) e " +
-            "autoatualização sozinha. Também sincroniza o histórico de navegação com o Ultron do PC, mas só " +
-            "se você ligar essa opção nas configurações -- desligado por padrão. Bloqueio de anúncios e aba " +
-            "privada continuam exclusivos do RedCore do PC por enquanto.",
-        versaoNome: "1.1",
-        versaoCodigo: 2,
+            "pesquisa no Google, voltar/avançar/recarregar, bloqueio de anúncios/rastreadores (menu ⋮, " +
+            "mesma lista de domínios do desktop) e favoritos sincronizados com o RedCore do PC nos dois " +
+            "sentidos. Também sincroniza o histórico de navegação com o Ultron do PC, mas só se você " +
+            "ligar essa opção nas configurações -- desligado por padrão. Aba privada continua exclusiva " +
+            "do RedCore do PC por enquanto.",
+        versaoNome: "1.2",
+        versaoCodigo: 3,
         tamanhoMb: 5.4,
         requisito: "Android 8.0 ou superior",
         arquivo: "apps/redcore-mobile.apk",

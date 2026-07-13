@@ -70,6 +70,11 @@ class SettingsActivity : AppCompatActivity() {
         binding.cloudForgetButton.setOnClickListener { confirmarEsquecerNuvem() }
         binding.recordVoiceSampleButton.setOnClickListener { pedirPermissaoDeAudioEGravar() }
         binding.identifyFaceButton.setOnClickListener { abrirCameraParaIdentificar() }
+        binding.screenViewButton.setOnClickListener { abrirVisualizacaoDeTela() }
+        binding.hardwareShortcutButton.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+        binding.statsButton.setOnClickListener { buscarEstatisticas() }
 
         atualizarStatusNuvem()
     }
@@ -305,6 +310,52 @@ class SettingsActivity : AppCompatActivity() {
                 }
             } finally {
                 arquivo.delete()
+            }
+        }
+    }
+
+    // ---- Extras: ver tela do PC, atalho de hardware, estatísticas de uso ----
+
+    private fun abrirVisualizacaoDeTela() {
+        if (prefs.host.isEmpty() || prefs.token.isEmpty()) {
+            Toast.makeText(this, "Configure a conexão com o Ultron do PC primeiro.", Toast.LENGTH_LONG).show()
+            return
+        }
+        startActivity(Intent(this, ScreenViewActivity::class.java))
+    }
+
+    private fun buscarEstatisticas() {
+        if (prefs.host.isEmpty() || prefs.token.isEmpty()) {
+            Toast.makeText(this, "Configure a conexão com o Ultron do PC primeiro.", Toast.LENGTH_LONG).show()
+            return
+        }
+        binding.statsResultText.visibility = android.view.View.VISIBLE
+        binding.statsResultText.text = "Buscando..."
+        thread {
+            try {
+                val dados = JarvisClient.getEstatisticas(prefs.baseUrl, prefs.token, 7)
+                val total = dados.optInt("total_mensagens", 0)
+                val dias = dados.optInt("dias", 7)
+                val top = dados.optJSONArray("top_comandos")
+                runOnUiThread {
+                    if (total == 0) {
+                        binding.statsResultText.text = "Não processei nenhuma mensagem nos últimos $dias dia(s)."
+                        return@runOnUiThread
+                    }
+                    val linhas = StringBuilder("Últimos $dias dia(s): $total mensagem(ns) processada(s).\n")
+                    if (top != null) {
+                        linhas.append("Mais usados:\n")
+                        for (i in 0 until top.length()) {
+                            val item = top.getJSONObject(i)
+                            linhas.append("- ${item.optString("rotulo")}: ${item.optInt("vezes")}x\n")
+                        }
+                    }
+                    binding.statsResultText.text = linhas.toString().trim()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    binding.statsResultText.text = "Falha ao buscar estatísticas (${e.message})."
+                }
             }
         }
     }

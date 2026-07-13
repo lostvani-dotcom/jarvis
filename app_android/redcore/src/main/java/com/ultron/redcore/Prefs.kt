@@ -28,6 +28,12 @@ class Prefs(context: Context) {
     val baseUrl: String
         get() = if (host.startsWith("http://") || host.startsWith("https://")) host else "http://$host:$port"
 
+    /** Ligado por padrão -- mesmo padrão do RedCore do PC
+     * (redcore.bloqueio_anuncios em config.json, ver gui/redcore.py). */
+    var bloqueioAnuncios: Boolean
+        get() = sp.getBoolean("bloqueio_anuncios", true)
+        set(value) = sp.edit().putBoolean("bloqueio_anuncios", value).apply()
+
     /** Desligado por padrão -- ver server/http_server.py:/redcore/historico
      * e a decisão de projeto de manter isso opt-in (histórico de
      * navegação é dado sensível, diferente de "qual app instalar"). */

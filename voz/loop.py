@@ -29,6 +29,16 @@ passada explicitamente no construtor:
     fala volta a exigir a palavra de ativação. `0` desliga esse
     comportamento (sempre exige a palavra, modo antigo).
 
+Saudação por reconhecimento facial (opt-in, `personalidade.
+saudacao_por_rosto`, desligado por padrão): quando a palavra de
+ativação acabou de ser dita (início de uma conversa nova -- nunca no
+meio da janela de conversa contínua, nem sem wakeword, câmera ligando
+a cada frase seria intrusivo demais), tira uma foto rápida e, se
+reconhecer alguém já cadastrado (ver plugins/reconhecimento_facial.py),
+prefixa a resposta falada com "Oi, <nome>!". Melhor-esforço: qualquer
+falha (sem câmera, sem opencv-contrib, ninguém reconhecido) some em
+silêncio, nunca atrapalha a conversa.
+
 Interromper o Ultron no meio da fala: enquanto ele fala a resposta, um
 monitor de microfone concorrente (`_falar_com_interrupcao`) fica de
 olho no volume captado -- se detectar você falando por cima (qualquer
@@ -181,6 +191,37 @@ class VoiceLoop:
         thread_monitor.join(timeout=1.0)
         return interrompido.is_set()
 
+    def _saudacao_por_rosto(self) -> str:
+        """Ver docstring do módulo -- só chamada no início de uma
+        conversa nova (wake word recém-dita). Retorna "Oi, <nome>! "
+        se reconhecer alguém, ou "" (silenciosamente) em qualquer outro
+        caso -- desligado, sem câmera, sem ninguém cadastrado, ninguém
+        reconhecido na foto."""
+        settings = get_settings()
+        if not settings.get("personalidade.saudacao_por_rosto", False):
+            return ""
+        try:
+            from visao.camera import Camera
+            from visao.faces import get_recognizer
+
+            recognizer = get_recognizer()
+            if not recognizer.available() or not recognizer.known_names():
+                return ""
+            camera = Camera()
+            if not camera.available():
+                return ""
+            try:
+                frame = camera.snapshot()
+            finally:
+                camera.close()
+            if frame is None:
+                return ""
+            nomes = [r["nome"] for r in recognizer.identify(frame) if r["nome"] != "desconhecido"]
+            return f"Oi, {nomes[0]}! " if nomes else ""
+        except Exception as e:
+            log.warning("falha na saudação por rosto: %s", e)
+            return ""
+
     def _ouvir_turno(self, aguardando_wakeword: bool) -> str:
         """Um turno de escuta. Com `aguardando_wakeword=False` (dentro
         da janela de conversa contínua), ouve DIRETO, sem exigir a
@@ -207,6 +248,10 @@ class VoiceLoop:
         aguardando_wakeword = True
         while max_turns is None or turns < max_turns:
             try:
+                # Guardado ANTES de _ouvir_turno mudar de estado --
+                # "conversa nova" é exatamente "estava exigindo a
+                # wakeword e ela acabou de ser dita agora".
+                conversa_nova = aguardando_wakeword and self.wakeword is not None
                 text = self._ouvir_turno(aguardando_wakeword)
                 if not text.strip():
                     # Silêncio dentro da janela de conversa contínua --
@@ -228,8 +273,10 @@ class VoiceLoop:
                     continue
 
                 resposta = self.jarvis.process(text)
-                print(f"Ultron: {resposta}")
-                interrompido = self._falar_com_interrupcao(resposta)
+                saudacao = self._saudacao_por_rosto() if conversa_nova else ""
+                resposta_falada = saudacao + resposta
+                print(f"Ultron: {resposta_falada}")
+                interrompido = self._falar_com_interrupcao(resposta_falada)
                 turns += 1
 
                 if interrompido:

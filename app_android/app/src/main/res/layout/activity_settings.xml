@@ -236,6 +236,71 @@
             android:textColor="#C9D3E0"
             android:textSize="13sp"
             android:lineSpacingExtra="3dp"
+            android:layout_marginBottom="28dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="EXTRAS"
+            android:textColor="#7C8798"
+            android:textSize="11sp"
+            android:letterSpacing="0.12"
+            android:layout_marginBottom="10dp" />
+
+        <Button
+            android:id="@+id/screenViewButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Ver a tela do PC"
+            android:textColor="#E5E7EB"
+            android:textAllCaps="false"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_button_secondary" />
+
+        <Button
+            android:id="@+id/hardwareShortcutButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Ativação por hardware (3x volume)"
+            android:textColor="#E5E7EB"
+            android:textAllCaps="false"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_button_secondary" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Depois de tocar acima, ative &quot;Ultron (atalho de volume)&quot; na lista de serviços de acessibilidade. 3 toques seguidos no botão de baixar volume abrem o app já ouvindo."
+            android:textColor="#7C8798"
+            android:textSize="12sp"
+            android:layout_marginBottom="14dp" />
+
+        <Button
+            android:id="@+id/statsButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Estatísticas de uso"
+            android:textColor="#E5E7EB"
+            android:textAllCaps="false"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_button_secondary" />
+
+        <TextView
+            android:id="@+id/statsResultText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:padding="12dp"
+            android:textColor="#C9D3E0"
+            android:textSize="13sp"
+            android:lineSpacingExtra="3dp"
             android:visibility="gone" />
 
     </LinearLayout>

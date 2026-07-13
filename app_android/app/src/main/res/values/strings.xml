@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Ultron</string>
+    <string name="volume_service_description">Detecta 3 toques seguidos no botão de baixar volume pra abrir o Ultron e já começar a ouvir, sem precisar destravar o celular e tocar no app. Não lê tela nem ações de outros apps -- só escuta o botão de volume.</string>
 </resources>
