@@ -1,8 +1,20 @@
 # Opcional -- visão computacional (ver visao/).
 
-# Câmera, detecção facial (Haar cascade já incluso) e base para as
-# demais funções de visão.
-opencv-python>=4.9.0
+# Câmera, detecção facial (Haar cascade -- há uma cópia própria em
+# visao/data/, usada como fallback quando o wheel instalado não traz o
+# arquivo .xml embutido, ver visao/faces.py:_get_cascade) e
+# reconhecimento facial (identificar QUEM é o rosto, via LBPH --
+# cv2.face, ver visao/faces.py:FaceRecognizerLBPH e
+# plugins/reconhecimento_facial.py).
+#
+# IMPORTANTE: instale SÓ este pacote (opencv-contrib-python), NUNCA
+# junto com opencv-python -- os dois se instalam por cima um do outro
+# (mesmo pacote cv2) e corrompem os arquivos de dados de um deles
+# (bug real encontrado: instalar os dois deixava até a detecção básica
+# de rosto quebrada, sem o Haar cascade). opencv-contrib-python já
+# inclui tudo que opencv-python tem, mais o módulo cv2.face -- não
+# perde nenhum recurso trocando um pelo outro.
+opencv-contrib-python>=4.9.0
 
 # OCR (leitura de texto em imagem). Também exige o binário do
 # Tesseract OCR instalado no sistema operacional (não vem pelo pip) --
@@ -22,7 +34,10 @@ mediapipe>=0.10.9
 mss>=9.0.1
 numpy>=1.24
 
-# Reconhecimento facial (identificar QUEM é o rosto, não só que há um
-# rosto). Mais pesado -- depende de dlib, que por sua vez pode exigir
-# um compilador C++ instalado.
+# Reconhecimento facial alternativo, mais preciso que o LBPH padrão
+# (ver acima) mas bem mais pesado -- depende de dlib, que por sua vez
+# pode exigir um compilador C++ instalado no Windows. NÃO é o caminho
+# usado pelos comandos de chat (plugins/reconhecimento_facial.py usa
+# LBPH); só as funções soltas no fim de visao/faces.py, mantidas por
+# compatibilidade.
 # face_recognition>=1.3.0

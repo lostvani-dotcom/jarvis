@@ -9,6 +9,12 @@ data/videos/
 data/gemeo_digital/
 data/instagram_browser_profile/
 data/logins_browser_profile/
+# Fotos de rosto cadastradas para reconhecimento facial (LBPH,
+# visao/faces.py) -- dados biométricos, nunca versionar.
+data/faces/
+# Favoritos/downloads do RedCore (gui/redcore.py) -- dados pessoais de
+# navegação, mesmo padrão do histórico (data/jarvis.db).
+data/redcore_downloads/
 # Cópias de sessão do navegador pessoal (automacao/navegador_pessoal.py,
 # automacao/instagram_auto.py, automacao/musica.py) -- contêm cookies/
 # tokens de login reais copiados do Chrome/Brave/Edge do usuário.

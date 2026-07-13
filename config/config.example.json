@@ -84,6 +84,7 @@
     "picovoice_access_key": "",
     "silencio_para_parar_segundos": 1.0,
     "duracao_maxima_comando_segundos": 12.0,
+    "conversa_continua_segundos": 18.0,
     "velocidade_fala": 205
   },
   "visao": {
@@ -144,5 +145,8 @@
   "atualizacoes": {
     "verificar_automaticamente": true,
     "intervalo_horas": 24
+  },
+  "redcore": {
+    "bloqueio_anuncios": true
   }
 }

@@ -40,6 +40,8 @@ Melhorias adicionais:
   alto demais pra valer a pena aqui).
 """
 
+import importlib.util
+
 from config.settings import get_settings
 from logs.logger import get_logger
 
@@ -63,17 +65,19 @@ try:
 except ImportError:
     HAS_SPEECH_RECOGNITION = False
 
-try:
-    from faster_whisper import WhisperModel
-    HAS_FASTER_WHISPER = True
-except ImportError:
-    HAS_FASTER_WHISPER = False
-
-try:
-    import noisereduce as nr
-    HAS_NOISEREDUCE = True
-except ImportError:
-    HAS_NOISEREDUCE = False
+# faster-whisper e noisereduce são MUITO lentos de IMPORTAR de verdade
+# (~15-20 SEGUNDOS cada, medido -- puxam ctranslate2/scipy por baixo),
+# mesmo quando nem chegam a ser o motor usado (vosk, já instalado, é
+# preferido e é rápido). Antes isso rodava aqui em cima, no import do
+# módulo -- ou seja, TODA abertura do Ultron pagava ~35s de import
+# parado antes até da tela aparecer (era a causa real de "o Ultron não
+# abre": ele abria, só demorava demais sem dar nenhum sinal). Por isso
+# só checamos se estão INSTALADOS (find_spec -- olha se o pacote existe
+# sem executar o módulo, é rápido) aqui; o import de verdade só
+# acontece dentro de _listen_whisper()/_reduzir_ruido(), na hora que
+# forem genuinamente usados.
+HAS_FASTER_WHISPER = importlib.util.find_spec("faster_whisper") is not None
+HAS_NOISEREDUCE = importlib.util.find_spec("noisereduce") is not None
 
 _RMS_MINIMO_CONFIAVEL = 300.0  # abaixo disso (escala int16), a fala captada foi baixa demais pra confiar
 
@@ -203,6 +207,7 @@ class SpeechToText:
         if not HAS_NOISEREDUCE or audio.size == 0:
             return audio
         try:
+            import noisereduce as nr
             import numpy as np
             audio_float = audio.astype("float32").flatten() / 32768.0
             reduzido = nr.reduce_noise(y=audio_float, sr=samplerate)
@@ -236,6 +241,8 @@ class SpeechToText:
         }
 
     def _listen_whisper(self, duration_seconds: float) -> dict:
+        from faster_whisper import WhisperModel
+
         audio, samplerate, metadados = self._gravar_ate_silencio(duration_seconds)
         confiavel, motivo = self._avaliar_qualidade(metadados)
         audio = self._reduzir_ruido(audio, samplerate)

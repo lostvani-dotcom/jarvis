@@ -11,6 +11,7 @@ Comandos:
     "o que eu vi hoje" / "meu histórico do redcore" -> lista navegação recente
     "o que eu vi sobre X" -> busca no histórico
     "apaga o histórico do redcore" / "esquece minha navegação" -> limpa tudo
+    "meus favoritos do redcore" -> lista páginas favoritadas (⭐ na barra do RedCore)
 """
 
 import re
@@ -32,17 +33,18 @@ _LIMPAR_RE = re.compile(
     r"\besque[çc]\w*\s+(?:a\s+)?minha\s+navega[çc][ãa]o\b",
     re.IGNORECASE,
 )
+_FAVORITOS_RE = re.compile(r"\bmeus\s+favoritos\s+d[eo]\s+redcore\b|\bfavoritos\s+d[eo]\s+redcore\b", re.IGNORECASE)
 
 
 class RedCorePlugin(BasePlugin):
     name = "redcore"
     description = "Abre o RedCore (navegador do Ultron) e consulta/limpa o histórico de navegação registrado"
-    triggers = ["abre o redcore", "histórico do redcore", "vi sobre", "minha navegação"]
+    triggers = ["abre o redcore", "histórico do redcore", "vi sobre", "minha navegação", "favoritos do redcore"]
 
     def matches(self, text: str) -> bool:
         t = text.strip()
         return bool(
-            _ABRIR_RE.search(t) or _HISTORICO_HOJE_RE.search(t)
+            _ABRIR_RE.search(t) or _HISTORICO_HOJE_RE.search(t) or _FAVORITOS_RE.search(t)
             or _HISTORICO_BUSCA_RE.search(t) or _LIMPAR_RE.search(t)
         )
 
@@ -54,12 +56,26 @@ class RedCorePlugin(BasePlugin):
             return self._abrir(user_id)
         if _LIMPAR_RE.search(t):
             return self._limpar(user_id)
+        if _FAVORITOS_RE.search(t):
+            return self._favoritos(user_id)
         if _HISTORICO_HOJE_RE.search(t):
             return self._historico_hoje(user_id)
         m = _HISTORICO_BUSCA_RE.search(t)
         if m:
             return self._buscar(user_id, m.group(1).strip(" ?.!"))
         return None
+
+    def _favoritos(self, user_id: str):
+        from automacao import redcore_favoritos
+        favoritos = redcore_favoritos.listar(user_id)
+        if not favoritos:
+            return Answer(
+                'Você ainda não tem nenhum favorito no RedCore -- clique na ⭐ na barra de '
+                "ferramentas dele pra favoritar uma página.",
+                Confidence.CONFIRMED,
+            )
+        linhas = [f"- {f['titulo'] or f['url']} ({f['url']})" for f in favoritos[:20]]
+        return Answer("Seus favoritos do RedCore:\n" + "\n".join(linhas), Confidence.CONFIRMED)
 
     def _abrir(self, user_id: str):
         try:

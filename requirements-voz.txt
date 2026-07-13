@@ -13,8 +13,11 @@ numpy>=1.24
 # instanciar vosk.Model.
 vosk>=0.3.45
 
-# Alternativa offline mais pesada e mais precisa (Whisper).
-# faster-whisper>=1.0.0
+# Alternativa offline mais pesada e mais precisa (Whisper) -- escolha o
+# motor usado em config.json -> voz.motor_stt ("auto" prioriza vosk por
+# ser mais rápido pra carregar; "whisper" força este aqui pela precisão
+# maior, mesmo custando ~15-20s de import na primeira transcrição).
+faster-whisper>=1.0.0
 
 # Fallback ONLINE (usa a API gratuita de reconhecimento do Google) --
 # só é usado se nem vosk nem faster-whisper estiverem instalados.
