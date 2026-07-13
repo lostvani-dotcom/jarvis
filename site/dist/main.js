@@ -6,9 +6,6 @@
  * hero, uma letra de cada vez, como um terminal de verdade -- respeita
  * `prefers-reduced-motion` (mostra tudo pronto, sem animação, pra quem
  * pediu menos movimento no sistema).
- *
- * A alternância de tema (ThemeToggle) mora em theme.ts, compartilhada
- * com loja.html -- carregada ANTES deste script (ver index.html).
  */
 /** Nome do operador reconhecido no boot -- mesmo conceito da intro
  * cinematográfica do PC (gui/intro.py: "que bom revê-lo"), só que fixo

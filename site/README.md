@@ -54,14 +54,13 @@ nem recompilar nenhum APK.
 site/
 ├── index.html          # dossiê -- estrutura/conteúdo
 ├── loja.html             # loja -- estrutura/conteúdo
-├── style.css               # visual compartilhado (tema claro/escuro via [data-theme])
+├── style.css               # visual compartilhado -- só escuro, de propósito (ver style.css)
 ├── loja.css                 # visual específico da loja (cards de app, cor por categoria)
 ├── apps/                      # .apk publicados, servidos como arquivo estático
 │   ├── ultron-companion.apk
 │   ├── ultron-loja.apk
 │   └── redcore-mobile.apk
 ├── src/
-│   ├── theme.ts                # alternância de tema (compartilhado pelas duas páginas)
 │   ├── main.ts                  # efeito de "boot" do dossiê (personalizado com o nome do operador)
 │   └── loja.ts                   # catálogo de apps + renderização dos cards
 ├── dist/                          # TypeScript compilado (o que o navegador carrega)

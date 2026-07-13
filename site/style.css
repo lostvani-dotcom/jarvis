@@ -1,49 +1,26 @@
+/* Site inteiramente escuro, de propósito -- combina com a identidade
+   do Ultron (terminal/núcleo cognitivo) e não tem alternância de tema
+   pra manter (ver git history: já existiu um toggle claro/escuro,
+   removido porque o site nunca foi pensado pra funcionar bem claro). */
 :root {
-  --ink: #0b0707;
-  --panel: #170d0d;
-  --hairline: #3a1f1c;
+  --ink: #08050a;
+  --panel: #150d17;
+  --panel-raised: #1c1220;
+  --hairline: #362337;
   --core: #ff4d3d;
   --core-deep: #a3352a;
   --signal: #49d4ff;
   --gold: #e0a53c;
-  --steel: #c9baba;
-  --steel-dim: #8f7c7c;
-  --paper-text: #f2e9e6;
-  --display: -apple-system, "Segoe UI Semibold", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --body-font: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "Cascadia Code", "Consolas", "SFMono-Regular", Menlo, monospace;
-}
-
-:root[data-theme="light"] {
-  --ink: #f3ece6;
-  --panel: #fffaf6;
-  --hairline: #e2cfc6;
-  --core: #d6402e;
-  --core-deep: #93251a;
-  --signal: #0f8fb0;
-  --gold: #a5711f;
-  --steel: #4a3a37;
-  --steel-dim: #8a7570;
-  --paper-text: #201412;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]):not([data-theme="light"]) {
-    --ink: #f3ece6;
-    --panel: #fffaf6;
-    --hairline: #e2cfc6;
-    --core: #d6402e;
-    --core-deep: #93251a;
-    --signal: #0f8fb0;
-    --gold: #a5711f;
-    --steel: #4a3a37;
-    --steel-dim: #8a7570;
-    --paper-text: #201412;
-  }
+  --steel: #cabcc7;
+  --steel-dim: #8f7c8f;
+  --paper-text: #f5eef2;
+  --display: "Space Grotesk", -apple-system, "Segoe UI Semibold", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --body-font: "Inter", -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Consolas", "SFMono-Regular", Menlo, monospace;
 }
 
 * { box-sizing: border-box; }
-html { background: var(--ink); }
+html { background: var(--ink); color-scheme: dark; }
 
 body {
   margin: 0;
@@ -51,9 +28,12 @@ body {
   color: var(--steel);
   font-family: var(--body-font);
   font-size: 17px;
-  line-height: 1.65;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: 0.001em;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01" 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -90,35 +70,11 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--signal); outlin
   text-decoration: none;
   border-bottom: 1px solid transparent;
   padding-bottom: 2px;
+  transition: color 0.18s ease, border-color 0.18s ease;
 }
 .site-nav a:hover, .site-nav a[aria-current="page"] {
   color: var(--core);
   border-bottom-color: var(--core);
-}
-
-/* ---------- theme toggle ---------- */
-
-.theme-toggle {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 10;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--hairline);
-  background: var(--panel);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.theme-toggle-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--core);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--core) 60%, transparent);
 }
 
 /* ---------- hero ---------- */
@@ -177,15 +133,18 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--signal); outlin
   position: relative;
   text-align: center;
   font-family: var(--display);
-  font-weight: 800;
+  font-weight: 700;
   font-size: clamp(56px, 12vw, 128px);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
   line-height: 0.95;
   margin: 0;
   color: var(--paper-text);
   text-wrap: balance;
 }
-.wordmark span { color: var(--core); }
+.wordmark span {
+  color: var(--core);
+  text-shadow: 0 0 46px color-mix(in srgb, var(--core) 55%, transparent);
+}
 
 .tagline {
   position: relative;
@@ -195,7 +154,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--signal); outlin
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--steel-dim);
-  margin: 18px 0 0;
+  margin: 20px 0 0;
 }
 
 .thesis {
@@ -204,6 +163,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--signal); outlin
   max-width: 46ch;
   margin: 34px auto 0;
   font-size: 19px;
+  font-weight: 300;
   color: var(--steel);
   text-wrap: balance;
 }
@@ -223,9 +183,9 @@ section { padding: 96px 0; border-top: 1px solid var(--hairline); }
 
 h2 {
   font-family: var(--display);
-  font-weight: 800;
+  font-weight: 600;
   font-size: clamp(28px, 4vw, 40px);
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
   color: var(--paper-text);
   margin: 0 0 20px;
   text-wrap: balance;
@@ -236,7 +196,7 @@ p:last-child { margin-bottom: 0; }
 
 /* ---------- manifesto ---------- */
 
-.manifesto p { font-size: 20px; color: var(--paper-text); }
+.manifesto p { font-size: 21px; font-weight: 300; color: var(--paper-text); }
 .manifesto .prose { margin: 0 auto; text-align: center; max-width: 52ch; }
 
 /* ---------- systems grid ---------- */
@@ -256,7 +216,9 @@ p:last-child { margin-bottom: 0; }
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: background-color 0.2s ease;
 }
+.card:hover { background: var(--panel-raised); }
 
 .card .tag {
   font-family: var(--mono);
@@ -277,13 +239,14 @@ p:last-child { margin-bottom: 0; }
 }
 
 .card h3 {
-  font-family: var(--body-font);
-  font-weight: 700;
-  font-size: 18px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.005em;
   color: var(--paper-text);
   margin: 0;
 }
-.card p { font-size: 15px; color: var(--steel); margin: 0; }
+.card p { font-size: 15px; font-weight: 300; color: var(--steel); margin: 0; }
 
 /* ---------- spotlight ---------- */
 
@@ -307,8 +270,10 @@ p:last-child { margin-bottom: 0; }
   gap: 12px;
   padding: 13px 16px;
   border-bottom: 1px solid var(--hairline);
+  transition: background-color 0.2s ease;
 }
 .chain-step:last-child { border-bottom: none; }
+.chain-step:hover { background: var(--panel-raised); }
 .chain-step .n { color: var(--steel-dim); font-variant-numeric: tabular-nums; }
 .chain-step .label { color: var(--paper-text); flex: 1; padding: 0 12px; }
 .chain-step .val { color: var(--signal); text-align: right; }
@@ -338,9 +303,10 @@ p:last-child { margin-bottom: 0; }
 /* ---------- privacy ---------- */
 
 .rule-list { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); }
-.rule-list li { background: var(--panel); padding: 18px 20px; display: grid; grid-template-columns: 22px 1fr; gap: 14px; font-size: 15px; }
+.rule-list li { background: var(--panel); padding: 18px 20px; display: grid; grid-template-columns: 22px 1fr; gap: 14px; font-size: 15px; font-weight: 300; transition: background-color 0.2s ease; }
+.rule-list li:hover { background: var(--panel-raised); }
 .rule-list li::before { content: "→"; color: var(--core); font-family: var(--mono); }
-.rule-list b { color: var(--paper-text); }
+.rule-list b { color: var(--paper-text); font-weight: 600; }
 
 /* ---------- footer ---------- */
 
