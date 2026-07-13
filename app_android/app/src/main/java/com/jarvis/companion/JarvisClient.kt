@@ -2,6 +2,7 @@ package com.jarvis.companion
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -100,4 +101,53 @@ object JarvisClient {
      * GET /app/version) -- sem autenticação, é só metadado público
      * pra decidir se vale baixar uma atualização. */
     fun getServerVersion(baseUrl: String): JSONObject = request(baseUrl, "/app/version", "GET", "")
+
+    /** POST de corpo binário puro (áudio/imagem), separado de `request`
+     * porque esses endpoints não recebem/devolvem um JSON no corpo da
+     * REQUISIÇÃO (só na resposta) -- ver server/http_server.py,
+     * POST /voz/amostra e POST /visao/identificar. */
+    private fun requestBinario(
+        baseUrl: String, path: String, token: String, contentType: String, corpo: ByteArray,
+    ): JSONObject {
+        val conn = URL(baseUrl + path).openConnection() as HttpURLConnection
+        try {
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 8000
+            conn.readTimeout = 30000
+            if (token.isNotEmpty()) conn.setRequestProperty("Authorization", "Bearer $token")
+            conn.setRequestProperty("Content-Type", contentType)
+            conn.doOutput = true
+            conn.outputStream.use { it.write(corpo) }
+
+            val status = conn.responseCode
+            val stream = if (status in 200..299) conn.inputStream else conn.errorStream
+            val texto = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: "{}"
+            val json = try {
+                JSONObject(texto)
+            } catch (e: Exception) {
+                JSONObject()
+            }
+            if (status !in 200..299) {
+                throw JarvisException(json.optString("erro", "erro HTTP $status"))
+            }
+            return json
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** Envia uma amostra de voz gravada no celular pro PC usar na
+     * clonagem de voz (ver voz/clonagem.py:salvar_amostra_upload). O
+     * arquivo já vem no formato do MediaRecorder (.m4a/MPEG-4 + AAC). */
+    fun enviarAmostraVoz(baseUrl: String, token: String, arquivo: File) {
+        requestBinario(baseUrl, "/voz/amostra", token, "audio/mp4", arquivo.readBytes())
+    }
+
+    /** Manda uma foto (JPEG) pro reconhecimento facial do PC (LBPH, ver
+     * visao/faces.py) e devolve os rostos identificados, cada um com
+     * "nome" e "confianca". Lista vazia = nenhum rosto reconhecido. */
+    fun identificarRosto(baseUrl: String, token: String, jpegBytes: ByteArray): JSONArray {
+        val resposta = requestBinario(baseUrl, "/visao/identificar", token, "image/jpeg", jpegBytes)
+        return resposta.optJSONArray("rostos") ?: JSONArray()
+    }
 }

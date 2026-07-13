@@ -28,6 +28,18 @@ passada explicitamente no construtor:
     ver `_ouvir_turno()`. Fica em silêncio por essa janela e a próxima
     fala volta a exigir a palavra de ativação. `0` desliga esse
     comportamento (sempre exige a palavra, modo antigo).
+
+Interromper o Ultron no meio da fala: enquanto ele fala a resposta, um
+monitor de microfone concorrente (`_falar_com_interrupcao`) fica de
+olho no volume captado -- se detectar você falando por cima (qualquer
+fala, não precisa de uma palavra específica tipo "para"), a fala é
+cortada na hora (`voz/tts.py:TextToSpeech.parar()`) e o próximo turno
+já ouve direto o que você quis dizer, sem exigir a palavra de ativação
+de novo. Limitação honesta: sem cancelamento de eco -- em volume alto
+ou microfone sensível, o próprio áudio do Ultron pode disparar uma
+interrupção falsa; funciona melhor com fone de ouvido ou volume
+moderado. Precisa de `sounddevice`; sem ele, a fala simplesmente não
+pode ser interrompida (comportamento de sempre).
 """
 
 import re
@@ -39,6 +51,12 @@ from voz.tts import TextToSpeech
 from voz.wakeword import WakeWordDetector
 
 log = get_logger("voz")
+
+try:
+    import sounddevice as sd
+    HAS_SOUNDDEVICE = True
+except ImportError:
+    HAS_SOUNDDEVICE = False
 
 # Frases que encerram a janela de conversa contínua na hora (em vez de
 # esperar o silêncio expirar sozinho) -- "é só isso, obrigado" não devia
@@ -98,6 +116,71 @@ class VoiceLoop:
         direto a cada turno, então já é "contínuo" por natureza."""
         return bool(self.wakeword and self.wakeword.available()) and self._conversa_continua_seg > 0
 
+    def _falar_com_interrupcao(self, texto: str) -> bool:
+        """Fala `texto`, mas com um monitor de microfone concorrente
+        vigiando se você começa a falar por cima -- se sim, para a
+        fala na hora (TextToSpeech.parar()) e retorna True, pra quem
+        chama já tratar o próximo turno como uma escuta direta (sem
+        exigir a palavra de ativação), em vez de esperar a fala
+        terminar sozinha. Sem `sounddevice`, cai pra `self.tts.speak()`
+        normal (sem chance de interromper) -- ver docstring do módulo
+        pra limitação honesta sobre eco."""
+        if not HAS_SOUNDDEVICE:
+            self.tts.speak(texto)
+            return False
+
+        import threading
+
+        interrompido = threading.Event()
+        parar_monitor = threading.Event()
+        device_index = getattr(self.stt, "device_index", None)
+
+        def _monitorar():
+            import numpy as np
+
+            samplerate = 16000
+            tamanho_bloco = int(samplerate * 0.03)
+            # Limiar mais alto que o da gravação normal de propósito --
+            # o alto-falante tocando a própria fala do Ultron pode
+            # vazar pro microfone; exigir mais volume E mais blocos
+            # seguidos (não só um pico único) reduz falso positivo.
+            limiar_rms = 1100.0
+            blocos_necessarios = 5  # ~150ms de som sustentado acima do limiar
+            contagem = 0
+            try:
+                with sd.InputStream(
+                    samplerate=samplerate, channels=1, dtype="int16",
+                    blocksize=tamanho_bloco, device=device_index,
+                ) as stream:
+                    while not parar_monitor.is_set():
+                        bloco, _overflow = stream.read(tamanho_bloco)
+                        rms = float(np.sqrt(np.mean(bloco.astype("float64") ** 2))) if bloco.size else 0.0
+                        if rms >= limiar_rms:
+                            contagem += 1
+                            if contagem >= blocos_necessarios:
+                                interrompido.set()
+                                return
+                        else:
+                            contagem = 0
+            except Exception as e:
+                log.warning("monitor de interrupção da fala falhou: %s", e)
+
+        thread_monitor = threading.Thread(target=_monitorar, daemon=True)
+        thread_monitor.start()
+
+        thread_fala = threading.Thread(target=lambda: self.tts.speak(texto), daemon=True)
+        thread_fala.start()
+
+        while thread_fala.is_alive():
+            if interrompido.is_set():
+                self.tts.parar()
+                break
+            thread_fala.join(timeout=0.08)
+
+        parar_monitor.set()
+        thread_monitor.join(timeout=1.0)
+        return interrompido.is_set()
+
     def _ouvir_turno(self, aguardando_wakeword: bool) -> str:
         """Um turno de escuta. Com `aguardando_wakeword=False` (dentro
         da janela de conversa contínua), ouve DIRETO, sem exigir a
@@ -146,14 +229,23 @@ class VoiceLoop:
 
                 resposta = self.jarvis.process(text)
                 print(f"Ultron: {resposta}")
-                self.tts.speak(resposta)
+                interrompido = self._falar_com_interrupcao(resposta)
                 turns += 1
 
-                # Depois de responder, se a conversa contínua estiver
-                # ligada, o PRÓXIMO turno não exige a palavra de
-                # ativação -- só volta a exigir se esse próximo turno
-                # vier em silêncio (ver acima).
-                aguardando_wakeword = not self._em_janela_de_conversa()
+                if interrompido:
+                    # Você começou a falar por cima -- o próximo turno
+                    # já ouve direto o que você quis dizer, sem exigir
+                    # a palavra de ativação (mesmo sem conversa
+                    # contínua ligada: você acabou de interromper, é
+                    # óbvio que quer falar de novo agora).
+                    print("[voz] interrompido -- ouvindo o que você quer dizer...")
+                    aguardando_wakeword = False
+                else:
+                    # Depois de responder, se a conversa contínua estiver
+                    # ligada, o PRÓXIMO turno não exige a palavra de
+                    # ativação -- só volta a exigir se esse próximo turno
+                    # vier em silêncio (ver acima).
+                    aguardando_wakeword = not self._em_janela_de_conversa()
             except KeyboardInterrupt:
                 print("Encerrando modo voz.")
                 break

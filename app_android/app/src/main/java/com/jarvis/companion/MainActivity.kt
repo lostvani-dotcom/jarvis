@@ -16,6 +16,7 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.Gravity
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -44,11 +45,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: Prefs
     private lateinit var chatAdapter: ChatAdapter
+    private lateinit var sessionsAdapter: SessionsAdapter
     private var speechRecognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var ultimaEntradaFoiVoz = false
     private var micPulseAnimator: ObjectAnimator? = null
     private var desbloqueado = false
+
+    /** Id da conversa atualmente aberta na tela -- gerado uma vez por
+     * "nova conversa" (ou ao abrir o app pela 1ª vez) e reaproveitado a
+     * cada autosalvamento, pra sempre atualizar a MESMA entrada em vez
+     * de duplicar (ver Sessions.salvar). */
+    private var sessaoAtualId: String = Sessions.novoId()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +75,22 @@ class MainActivity : AppCompatActivity() {
         binding.chatRecycler.layoutManager = LinearLayoutManager(this)
         binding.chatRecycler.adapter = chatAdapter
 
+        sessionsAdapter = SessionsAdapter(
+            aoTocar = { sessao -> abrirSessao(sessao) },
+            aoSegurar = { sessao -> confirmarExclusaoDeSessao(sessao) },
+        )
+        binding.sessionsRecycler.layoutManager = LinearLayoutManager(this)
+        binding.sessionsRecycler.adapter = sessionsAdapter
+
+        binding.menuButton.setOnClickListener {
+            binding.drawerLayout.let {
+                if (it.isDrawerOpen(Gravity.START)) it.closeDrawer(Gravity.START) else {
+                    atualizarListaDeSessoes()
+                    it.openDrawer(Gravity.START)
+                }
+            }
+        }
+        binding.newChatButton.setOnClickListener { novaConversa() }
         binding.settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
@@ -531,5 +555,60 @@ class MainActivity : AppCompatActivity() {
         binding.chatRecycler.post {
             binding.chatRecycler.scrollToPosition(chatAdapter.itemCount - 1)
         }
+        autosalvarSessaoAtual()
+    }
+
+    /** Salva (ou atualiza) a conversa da tela na lista de sessões
+     * locais a cada mensagem -- assim fechar o app no meio de uma
+     * conversa não perde nada, sem precisar de um botão "salvar"
+     * manual. Mensagens só de SISTEMA/ERRO (sem nenhuma do usuário)
+     * não geram entrada -- ver Sessions.salvar. */
+    private fun autosalvarSessaoAtual() {
+        Sessions.salvar(applicationContext, sessaoAtualId, chatAdapter.todasAsMensagens())
+    }
+
+    private fun atualizarListaDeSessoes() {
+        val sessoes = Sessions.listar(applicationContext)
+        sessionsAdapter.atualizar(sessoes)
+        binding.emptySessionsText.visibility = if (sessoes.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    /** Abre uma conversa salva no painel: substitui o que está na tela
+     * por ela e passa a autosalvar NELA (id reaproveitado) -- mandar
+     * uma mensagem nova continua essa mesma conversa, igual o ChatGPT
+     * faz ao reabrir um tópico antigo. Isso é só sobre qual transcript
+     * aparece no celular; a memória do Ultron no PC não muda com isso. */
+    private fun abrirSessao(sessao: ChatSession) {
+        sessaoAtualId = sessao.id
+        chatAdapter.substituirTudo(sessao.mensagens)
+        binding.chatRecycler.post {
+            binding.chatRecycler.scrollToPosition(maxOf(0, chatAdapter.itemCount - 1))
+        }
+        binding.drawerLayout.closeDrawer(Gravity.START)
+    }
+
+    /** Guarda a conversa atual (se tiver algo) e começa uma em branco,
+     * com um id novo -- mesmo espírito do botão "+" do ChatGPT. */
+    private fun novaConversa() {
+        autosalvarSessaoAtual()
+        sessaoAtualId = Sessions.novoId()
+        chatAdapter.substituirTudo(emptyList())
+        binding.drawerLayout.closeDrawer(Gravity.START)
+        adicionarMensagem("Nova conversa. Pode mandar.", Remetente.SISTEMA)
+    }
+
+    private fun confirmarExclusaoDeSessao(sessao: ChatSession) {
+        AlertDialog.Builder(this)
+            .setTitle("Excluir conversa")
+            .setMessage("Apagar \"${sessao.titulo}\" da lista? Isso só remove o transcript salvo neste celular -- não mexe na memória do Ultron no PC.")
+            .setPositiveButton("Excluir") { _, _ ->
+                Sessions.excluir(applicationContext, sessao.id)
+                if (sessao.id == sessaoAtualId) {
+                    sessaoAtualId = Sessions.novoId()
+                }
+                atualizarListaDeSessoes()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 }

@@ -159,6 +159,28 @@ class TextToSpeech:
             return
         raise RuntimeError("Instale 'pyttsx3' para o Ultron falar (pip install pyttsx3).")
 
+    def parar(self):
+        """Interrompe a fala em andamento na hora, se possível -- usado
+        por voz/loop.py pra permitir falar por cima do Ultron (ver
+        VoiceLoop._falar_com_interrupcao). Cobre os dois caminhos que
+        tocam via `winsound` (voz clonada e o efeito Ultron/DSP -- os
+        mais comuns na prática, já que `personalidade.efeito_ultron`
+        vem ligado por padrão): `winsound.PlaySound(None, SND_PURGE)`
+        para QUALQUER reprodução em andamento no processo, então nem
+        precisa saber qual delas está tocando agora.
+
+        Limitação honesta: a prosódia SAPI5 "crua" (fallback sem o
+        efeito DSP) e o `pyttsx3` puro não têm como ser interrompidos
+        com segurança daqui (mexer no objeto COM do SAPI a partir de
+        outra thread arrisca erro de apartment do COM) -- nesses dois
+        casos raros (só acontecem se numpy/DSP não estiverem
+        disponíveis), a fala simplesmente termina normalmente."""
+        try:
+            import winsound
+            winsound.PlaySound(None, winsound.SND_PURGE)
+        except Exception:
+            pass
+
     def _usar_voz_clonada(self) -> bool:
         """Voz clonada (ver voz/clonagem.py) e voz robótica são
         personas MUTUAMENTE EXCLUSIVAS de propósito -- não faz sentido

@@ -72,4 +72,16 @@ class ChatAdapter : RecyclerView.Adapter<ChatAdapter.ViewHolder>() {
         notifyItemInserted(posicao)
         return posicao
     }
+
+    /** Snapshot de todas as mensagens da tela agora -- usado pra
+     * autosalvar a sessão atual (ver Sessions.kt/MainActivity). */
+    fun todasAsMensagens(): List<ChatMessage> = mensagens.toList()
+
+    /** Troca todo o conteúdo da tela por outra conversa (ao abrir uma
+     * sessão salva no painel deslizante) ou esvazia (nova conversa). */
+    fun substituirTudo(novasMensagens: List<ChatMessage>) {
+        mensagens.clear()
+        mensagens.addAll(novasMensagens)
+        notifyDataSetChanged()
+    }
 }

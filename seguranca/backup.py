@@ -44,6 +44,35 @@ def create_backup() -> str:
     return dest
 
 
+def criar_pacote_completo() -> str:
+    """Backup COMPLETO -- banco de dados + config.json + chave de
+    criptografia (data/.jarvis.key), tudo num .zip só. Diferente de
+    `create_backup()` (só o .db, pro backup diário automático): este é
+    pra restaurar o Ultron inteiro numa máquina nova ou depois de um
+    desastre (ver seguranca/restaurar_backup.py) -- sem a chave junto,
+    o histórico do RedCore criptografado (seguranca/crypto.py) fica
+    ilegível pra sempre, então ela PRECISA ir junto num backup de
+    restauração de verdade. Baixável via GET /backup/completo (exige
+    token -- ver server/http_server.py), ou comando de chat "faz um
+    backup completo" (plugins/backup_completo.py)."""
+    import zipfile
+
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    destino = os.path.join(BACKUP_DIR, f"ultron_completo_{timestamp}.zip")
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    arquivos = [
+        DB_PATH,
+        os.path.join(base_dir, "config", "config.json"),
+        os.path.join(base_dir, "data", ".jarvis.key"),
+    ]
+    with zipfile.ZipFile(destino, "w", zipfile.ZIP_DEFLATED) as z:
+        for caminho in arquivos:
+            if os.path.isfile(caminho):
+                z.write(caminho, arcname=os.path.basename(caminho))
+    return destino
+
+
 def list_backups() -> list:
     if not os.path.isdir(BACKUP_DIR):
         return []

@@ -57,6 +57,18 @@ Endpoints:
     GET  /site/<caminho>                -> serve o site estático (site/, HTML/CSS/TS
         compilado) direto deste servidor -- mesmos arquivos do repositório, só que
         alcançáveis pelo celular também, sem precisar abrir o arquivo local no PC.
+    POST /visao/identificar {corpo: JPEG cru} -> {"rostos": [{"nome","confianca"}, ...]}
+        (com auth -- reconhecimento facial via foto, ver visao/faces.py. Usado pelo
+        Companion pra "quem é essa pessoa" com a câmera do celular)
+    POST /voz/amostra {corpo: áudio cru, Content-Type indica formato} -> {"ok": true}
+        (com auth -- salva a amostra de referência pra clonagem de voz vinda do
+        celular, ver voz/clonagem.py:salvar_amostra_upload)
+    POST /redcore/historico {"url","titulo","conteudo","user_id"} -> {"ok": true, "id": int}
+        (com auth -- sincronização OPT-IN do histórico do RedCore Mobile pro mesmo
+        histórico do RedCore do PC, ver automacao/redcore_historico.py)
+    GET  /backup/completo             -> baixa um .zip com banco de dados + config +
+        chave de criptografia (com auth -- é o backup mais sensível que existe, nunca
+        sem token). Ver seguranca/backup.py e seguranca/restaurar_backup.py.
 """
 
 import json
@@ -297,6 +309,81 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
+    def _read_body(self) -> bytes:
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        return self.rfile.read(length) if length else b""
+
+    def _identificar_rosto(self):
+        """POST /visao/identificar -- corpo é uma foto JPEG crua
+        (não JSON, por isso tratado ANTES de _read_json() em do_POST).
+        Usado pelo Companion pra "quem é essa pessoa" via câmera do
+        celular, reaproveitando o MESMO reconhecedor LBPH do PC (ver
+        plugins/reconhecimento_facial.py -- os rostos cadastrados são
+        os mesmos, não importa se cadastrados pela câmera do PC ou
+        identificados a partir de uma foto do celular)."""
+        corpo = self._read_body()
+        if not corpo:
+            self._send_json(400, {"erro": "corpo vazio -- envie a foto em JPEG"})
+            return
+        try:
+            import numpy as np
+            import cv2
+            from visao.faces import get_recognizer
+
+            array = np.frombuffer(corpo, dtype=np.uint8)
+            frame = cv2.imdecode(array, cv2.IMREAD_COLOR)
+            if frame is None:
+                self._send_json(400, {"erro": "não consegui decodificar a imagem (envie um JPEG válido)"})
+                return
+            recognizer = get_recognizer()
+            if not recognizer.available():
+                self._send_json(503, {"erro": "reconhecimento facial indisponível no servidor (falta opencv-contrib-python)"})
+                return
+            resultados = recognizer.identify(frame)
+            rostos = [{"nome": r["nome"], "confianca": r["confianca"]} for r in resultados]
+            self._send_json(200, {"rostos": rostos})
+        except Exception as e:
+            log.warning("falha ao identificar rosto via upload: %s", e)
+            self._send_json(500, {"erro": str(e)})
+
+    def _receber_amostra_voz(self):
+        """POST /voz/amostra -- corpo é o áudio cru gravado pelo
+        celular (não JSON). `Content-Type` indica o formato pra saber
+        que extensão salvar (ver voz/clonagem.py:salvar_amostra_upload
+        -- o XTTS lê o áudio via ffmpeg/librosa na hora de sintetizar,
+        não precisa ser WAV)."""
+        corpo = self._read_body()
+        if not corpo:
+            self._send_json(400, {"erro": "corpo vazio -- envie o áudio gravado"})
+            return
+        from voz import clonagem
+        if not clonagem.disponivel():
+            self._send_json(503, {"erro": "clonagem de voz indisponível no servidor (falta coqui-tts)"})
+            return
+        tipo = self.headers.get("Content-Type", "audio/mp4")
+        extensao = "wav" if "wav" in tipo else "m4a"
+        resultado = clonagem.salvar_amostra_upload(corpo, extensao)
+        if not resultado["sucesso"]:
+            self._send_json(400, resultado)
+            return
+        self._send_json(200, {"ok": True})
+
+    def _enviar_backup_completo(self):
+        try:
+            from seguranca.backup import criar_pacote_completo
+            caminho = criar_pacote_completo()
+        except Exception as e:
+            self._send_json(500, {"erro": f"falha ao gerar backup: {e}"})
+            return
+        with open(caminho, "rb") as f:
+            body = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Disposition", f'attachment; filename="{os.path.basename(caminho)}"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", 0) or 0)
         if length == 0:
@@ -358,6 +445,16 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_site_file(self.path[len("/site/"):] if self.path != "/site" else "")
             return
 
+        if self.path == "/backup/completo":
+            # Com auth SEMPRE -- é o backup mais sensível que existe
+            # (inclui a chave de criptografia), diferente de /app.apk
+            # e afins, que são só instaladores públicos.
+            if not self._autorizado():
+                self._send_json(401, {"erro": "token inválido"})
+                return
+            self._enviar_backup_completo()
+            return
+
         if self.path.startswith("/poll"):
             if not self._autorizado():
                 self._send_json(401, {"erro": "token inválido"})
@@ -396,7 +493,41 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(401, {"erro": "token inválido"})
             return
 
+        # Corpo BINÁRIO (foto/áudio cru, não JSON) -- tratado ANTES de
+        # _read_json() de propósito: _read_json() consome o corpo
+        # inteiro do rfile tentando json.loads(), e o stream HTTP só
+        # pode ser lido uma vez. Rotear esses dois aqui evita esse
+        # conflito com os endpoints JSON abaixo.
+        if self.path == "/visao/identificar":
+            self._identificar_rosto()
+            return
+
+        if self.path == "/voz/amostra":
+            self._receber_amostra_voz()
+            return
+
         dados = self._read_json()
+
+        if self.path == "/redcore/historico":
+            # Sincronização OPT-IN do histórico do RedCore Mobile --
+            # mesma tabela/formato do RedCore do PC (automacao/
+            # redcore_historico.py), então "o que eu vi hoje" já
+            # inclui o que você navegou pelo celular também.
+            url = (dados.get("url") or "").strip()
+            if not url:
+                self._send_json(400, {"erro": "campo 'url' vazio"})
+                return
+            user_id = dados.get("user_id") or "default_user"
+            titulo = dados.get("titulo", "")
+            conteudo = dados.get("conteudo", "")
+            try:
+                from automacao import redcore_historico
+                visita_id = redcore_historico.registrar_visita(user_id, url, titulo, conteudo)
+                self._send_json(200, {"ok": True, "id": visita_id})
+            except Exception as e:
+                log.warning("falha ao sincronizar histórico do RedCore Mobile: %s", e)
+                self._send_json(500, {"erro": str(e)})
+            return
 
         if self.path == "/chat":
             texto = (dados.get("text") or "").strip()

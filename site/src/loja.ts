@@ -30,16 +30,18 @@ const CATALOGO: readonly AppEntry[] = [
     categoria: "Produtividade",
     resumo: "O Ultron no seu bolso -- interface de chat estilo ChatGPT, controla o celular e conversa com o núcleo do PC pela Wi-Fi.",
     descricao:
-      "Chat com o Ultron direto do celular (bolhas de mensagem, campo em pílula -- configuração " +
-      "de conexão/permissões agora numa tela própria, atrás do ícone ⚙), encaminha notificações " +
-      "(Instagram/WhatsApp/Telegram/Signal/Discord) e responde comandos do aparelho (bateria, " +
-      "lanterna, volume, alarme, localização e mais) mesmo com o app fechado. Boa parte das " +
-      "funções roda 100% offline no próprio celular. Modo nuvem (conversar sem o PC ligado) com " +
-      "memória persistente e sincronização automática em segundo plano -- conversa aberta com " +
-      "acesso à memória/base de conhecimento completa continua exigindo o Ultron do PC na mesma " +
-      "rede.",
-    versaoNome: "1.7",
-    versaoCodigo: 8,
+      "Chat com o Ultron direto do celular (bolhas de mensagem, campo em pílula, histórico de " +
+      "conversas num painel deslizante estilo ChatGPT -- configuração de conexão/permissões numa " +
+      "tela própria, atrás do ícone ⚙), encaminha notificações (Instagram/WhatsApp/Telegram/" +
+      "Signal/Discord) e responde comandos do aparelho (bateria, lanterna, volume, alarme, " +
+      "localização e mais) mesmo com o app fechado. Agora também grava amostra de voz pelo " +
+      "microfone do celular (pra clonagem de voz) e identifica rostos cadastrados usando a câmera " +
+      "do celular -- os dois processados pelo Ultron do PC. Boa parte das funções roda 100% " +
+      "offline no próprio celular. Modo nuvem (conversar sem o PC ligado) com memória persistente " +
+      "e sincronização automática em segundo plano -- conversa aberta com acesso à memória/base " +
+      "de conhecimento completa continua exigindo o Ultron do PC na mesma rede.",
+    versaoNome: "1.8",
+    versaoCodigo: 9,
     tamanhoMb: 5.4,
     requisito: "Android 8.0 ou superior",
     arquivo: "apps/ultron-companion.apk",
@@ -54,9 +56,10 @@ const CATALOGO: readonly AppEntry[] = [
     descricao:
       "App dedicado só a isso: procurar o Ultron na Wi-Fi de casa, listar o catálogo publicado por ele " +
       "(GET /loja/catalogo) e baixar/instalar qualquer app da lista -- sem loja de terceiros, sem conta, " +
-      "sem rastreamento. O mesmo catálogo que alimenta esta página também alimenta o app.",
-    versaoNome: "1.0",
-    versaoCodigo: 1,
+      "sem rastreamento. O mesmo catálogo que alimenta esta página também alimenta o app. Agora a " +
+      "própria Loja se atualiza sozinha quando publicamos uma versão nova dela.",
+    versaoNome: "1.1",
+    versaoCodigo: 2,
     tamanhoMb: 5.3,
     requisito: "Android 8.0 ou superior",
     arquivo: "apps/ultron-loja.apk",
@@ -67,14 +70,16 @@ const CATALOGO: readonly AppEntry[] = [
     id: "redcore-mobile",
     nome: "RedCore",
     categoria: "Navegador",
-    resumo: "O navegador do Ultron, agora no celular -- abas, busca embutida, mesmo visual do PC.",
+    resumo: "O navegador do Ultron, agora no celular -- abas, busca embutida, favoritos, mesmo visual do PC.",
     descricao:
       "Versão leve do RedCore do PC (gui/redcore.py): abas de verdade, barra de endereço que também " +
-      "pesquisa no Google, voltar/avançar/recarregar. Favoritos, downloads, bloqueio de anúncios e aba " +
-      "privada continuam exclusivos do RedCore do PC por enquanto -- este é o essencial, no bolso.",
-    versaoNome: "1.0",
-    versaoCodigo: 1,
-    tamanhoMb: 5.3,
+      "pesquisa no Google, voltar/avançar/recarregar, favoritos (locais neste celular, no menu ⋮) e " +
+      "autoatualização sozinha. Também sincroniza o histórico de navegação com o Ultron do PC, mas só " +
+      "se você ligar essa opção nas configurações -- desligado por padrão. Bloqueio de anúncios e aba " +
+      "privada continuam exclusivos do RedCore do PC por enquanto.",
+    versaoNome: "1.1",
+    versaoCodigo: 2,
+    tamanhoMb: 5.4,
     requisito: "Android 8.0 ou superior",
     arquivo: "apps/redcore-mobile.apk",
     glifo: "R",

@@ -29,6 +29,7 @@ False e o resto do Ultron continua funcionando normal, com a voz
 padrão/robótica de sempre.
 """
 
+import glob
 import importlib.util
 import os
 
@@ -40,7 +41,7 @@ HAS_COQUI_TTS = importlib.util.find_spec("TTS") is not None
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _AMOSTRA_DIR = os.path.join(_BASE_DIR, "data", "voz_clonada")
-_AMOSTRA_PATH = os.path.join(_AMOSTRA_DIR, "amostra.wav")
+_AMOSTRA_GLOB = os.path.join(_AMOSTRA_DIR, "amostra.*")
 _AUDIOS_GERADOS_DIR = os.path.join(_BASE_DIR, "data", "audios_gerados")
 _MODELO_XTTS = "tts_models/multilingual/multi-dataset/xtts_v2"
 _SAMPLERATE_GRAVACAO = 22050  # amostragem que o XTTS espera pra referência
@@ -52,14 +53,39 @@ def disponivel() -> bool:
     return HAS_COQUI_TTS
 
 
+def _encontrar_amostra() -> str:
+    """Acha o arquivo de amostra, seja qual for a extensão -- .wav
+    quando gravada pelo microfone do PC (gravar_amostra(), abaixo),
+    .m4a quando enviada pelo app do celular (ver
+    salvar_amostra_upload() e plugins/clonagem_voz.py). Só existe UMA
+    amostra por vez (ver _substituir_amostra); retorna "" se não há
+    nenhuma."""
+    encontrados = glob.glob(_AMOSTRA_GLOB)
+    return encontrados[0] if encontrados else ""
+
+
+def _substituir_amostra(caminho_novo: str):
+    """Remove qualquer amostra ANTERIOR (de qualquer extensão) antes
+    de considerar `caminho_novo` a amostra atual -- sem isso, gravar
+    pelo PC depois de já ter enviado uma pelo celular (ou vice-versa)
+    deixaria as duas no disco e `_encontrar_amostra()` poderia pegar a
+    velha por acaso, dependendo da ordem do glob."""
+    for antigo in glob.glob(_AMOSTRA_GLOB):
+        if os.path.abspath(antigo) != os.path.abspath(caminho_novo):
+            try:
+                os.remove(antigo)
+            except OSError:
+                pass
+
+
 def tem_amostra() -> bool:
-    return os.path.isfile(_AMOSTRA_PATH)
+    return bool(_encontrar_amostra())
 
 
 def gravar_amostra(duracao_segundos: float = DURACAO_AMOSTRA_PADRAO, device_index: int = None) -> dict:
-    """Grava `duracao_segundos` de áudio do microfone e salva como
-    amostra de referência pra clonagem. BLOQUEIA a thread que chamou
-    pela duração inteira -- mesmo padrão de
+    """Grava `duracao_segundos` de áudio do microfone do PC e salva
+    como amostra de referência pra clonagem. BLOQUEIA a thread que
+    chamou pela duração inteira -- mesmo padrão de
     plugins/reconhecimento_facial.py ao cadastrar um rosto: é um
     comando explícito do usuário, que já foi avisado antes (ver
     plugins/clonagem_voz.py) que a gravação vai demorar esse tempo.
@@ -85,14 +111,36 @@ def gravar_amostra(duracao_segundos: float = DURACAO_AMOSTRA_PADRAO, device_inde
     if pico < _PICO_MINIMO_CONFIAVEL:
         return {"sucesso": False, "motivo": "não captei quase nenhum som -- confira o microfone e tente de novo"}
 
-    sf.write(_AMOSTRA_PATH, audio, _SAMPLERATE_GRAVACAO)
+    caminho = os.path.join(_AMOSTRA_DIR, "amostra.wav")
+    sf.write(caminho, audio, _SAMPLERATE_GRAVACAO)
+    _substituir_amostra(caminho)
+    return {"sucesso": True, "motivo": None}
+
+
+def salvar_amostra_upload(dados: bytes, extensao: str = "m4a") -> dict:
+    """Salva uma amostra de voz recebida por upload -- usado por
+    server/http_server.py (POST /voz/amostra), que o app Companion usa
+    pra deixar gravar a amostra direto pelo microfone do CELULAR, não
+    só do PC (ver app_android/.../SettingsActivity.kt). `extensao` sem
+    o ponto (ex.: "m4a", indo pro formato que o MediaRecorder do
+    Android grava por padrão -- lido pelo XTTS via ffmpeg/librosa na
+    hora de sintetizar, sem precisar converter pra WAV aqui)."""
+    if not dados:
+        return {"sucesso": False, "motivo": "corpo vazio"}
+    os.makedirs(_AMOSTRA_DIR, exist_ok=True)
+    extensao_limpa = "".join(c for c in extensao if c.isalnum()) or "m4a"
+    caminho = os.path.join(_AMOSTRA_DIR, f"amostra.{extensao_limpa}")
+    with open(caminho, "wb") as f:
+        f.write(dados)
+    _substituir_amostra(caminho)
     return {"sucesso": True, "motivo": None}
 
 
 def esquecer_amostra() -> bool:
-    if not tem_amostra():
+    caminho = _encontrar_amostra()
+    if not caminho:
         return False
-    os.remove(_AMOSTRA_PATH)
+    os.remove(caminho)
     return True
 
 
@@ -141,7 +189,7 @@ class VoiceCloner:
         if saida is None:
             import tempfile
             saida = tempfile.mktemp(suffix="_ultron_voz_clonada.wav")
-        self._tts.tts_to_file(text=texto, speaker_wav=_AMOSTRA_PATH, language=idioma[:2], file_path=saida)
+        self._tts.tts_to_file(text=texto, speaker_wav=_encontrar_amostra(), language=idioma[:2], file_path=saida)
         return saida
 
     def gerar_arquivo_compartilhavel(self, texto: str, idioma: str = "pt") -> str:

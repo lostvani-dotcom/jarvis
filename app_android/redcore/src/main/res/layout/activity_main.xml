@@ -102,6 +102,21 @@
             android:stateListAnimator="@null"
             android:backgroundTint="@null"
             android:background="@drawable/bg_nav_button" />
+
+        <Button
+            android:id="@+id/optionsButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="4dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            android:text="⋮"
+            android:textSize="16sp"
+            android:textColor="#E7E5E5"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_nav_button" />
     </LinearLayout>
 
     <!-- Conteúdo da aba ativa (a WebView é anexada aqui em runtime) -->

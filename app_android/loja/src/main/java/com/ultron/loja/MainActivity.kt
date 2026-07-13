@@ -77,11 +77,36 @@ class MainActivity : AppCompatActivity() {
                     setStatus("Conectado em ${prefs.host} -- $disponiveis app(s) disponível(is)")
                     montarLista(apps)
                 }
+                checarAutoAtualizacao(apps)
             } catch (e: Exception) {
                 runOnUiThread {
                     setStatus("Não consegui buscar o catálogo (${e.message}). Toque em \"Buscar\" pra tentar de novo.")
                 }
             }
+        }
+    }
+
+    /** A própria Loja está listada no catálogo dela (id "ultron-loja") --
+     * compara a versão instalada com a do catálogo e, se tiver uma mais
+     * nova, baixa e dispara a instalação sozinha, mesmo padrão do app
+     * Companion (ver MainActivity.kt dele: checarAtualizacao). Chamado
+     * numa thread de fundo (já dentro de carregarCatalogo). */
+    private fun checarAutoAtualizacao(apps: List<AppEntry>) {
+        val entrada = apps.firstOrNull { it.id == "ultron-loja" && it.disponivel } ?: return
+        val versaoAtual = packageManager.getPackageInfo(packageName, 0).let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) it.longVersionCode.toInt() else @Suppress("DEPRECATION") it.versionCode
+        }
+        if (entrada.versaoCodigo <= versaoAtual) return
+        runOnUiThread {
+            Toast.makeText(this, "Atualizando a Loja pra versão ${entrada.versaoNome}...", Toast.LENGTH_SHORT).show()
+        }
+        try {
+            val destino = File(cacheDir, entrada.arquivo)
+            StoreClient.baixarApk(prefs.baseUrl, entrada.arquivo, destino)
+            runOnUiThread { dispararInstalacao(destino) }
+        } catch (e: Exception) {
+            // melhor-esforço -- se falhar, o usuário ainda pode tocar
+            // "Instalar" no card da própria Loja manualmente.
         }
     }
 

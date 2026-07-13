@@ -3,6 +3,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Pra disparar a instalação da própria atualização baixada
+         (ver MainActivity.kt: checarAutoAtualizacao/instalarApk). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="true"
@@ -14,12 +17,12 @@
         <!--
         RedCore Mobile: versão leve do navegador do Ultron (gui/redcore.py,
         no PC) pro celular. Abas, barra de endereço, voltar/avançar,
-        pesquisa via Google quando o texto não parece uma URL, mesmo
-        espírito do desktop, sem tentar portar cada recurso dele
-        (favoritos/downloads/bloqueio de anúncios/aba privada continuam
-        exclusivos do RedCore do PC por enquanto). usesCleartextTraffic
-        permite abrir sites http:// antigos além dos https:// normais,
-        como qualquer navegador de verdade.
+        pesquisa via Google quando o texto não parece uma URL, favoritos
+        (locais neste celular) e sincronização de histórico com o PC
+        (opt-in, ver Prefs.sincronizarHistorico); bloqueio de anúncios e
+        aba privada continuam exclusivos do RedCore do PC por enquanto.
+        usesCleartextTraffic permite abrir sites http:// antigos além dos
+        https:// normais, como qualquer navegador de verdade.
         -->
 
         <activity
@@ -31,6 +34,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Necessário pra instalar a própria atualização baixada
+             (Android exige content:// URI, não file://, desde a API 24). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 </manifest>
