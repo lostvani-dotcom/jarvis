@@ -29,6 +29,12 @@ import kotlin.concurrent.thread
  * comandos pararem de responder depois de um tempo, desative a
  * otimização de bateria pro app "Ultron" nas configurações do
  * aparelho.
+ *
+ * 3. Re-sincroniza a config do "modo nuvem" (CloudAI.kt) em segundo
+ *    plano, throttlado (ver INTERVALO_RESYNC_NUVEM_MS) -- assim o
+ *    modo nuvem se mantém atualizado (chave/modelo/personalidade)
+ *    mesmo em dias que o usuário nunca abre o MainActivity, contanto
+ *    que o celular passe pela mesma Wi-Fi do PC em algum momento.
  */
 class NotifyListenerService : NotificationListenerService() {
 
@@ -44,6 +50,7 @@ class NotifyListenerService : NotificationListenerService() {
 
     private val pollingHandler = Handler(Looper.getMainLooper())
     private val pollingIntervalMs = 3000L
+    private val intervaloResyncNuvemMs = 15 * 60 * 1000L  // 15min -- não vale a pena checar mais que isso
     private var pollingAtivo = false
 
     private val pollingRunnable = object : Runnable {
@@ -54,9 +61,30 @@ class NotifyListenerService : NotificationListenerService() {
                 thread {
                     processarComandoPendente(prefs)
                     processarMensagensPendentes(prefs)
+                    resincronizarNuvemSeNecessario(prefs)
                 }
             }
             pollingHandler.postDelayed(this, pollingIntervalMs)
+        }
+    }
+
+    /** Só busca GET /ia/config de novo se já faz tempo desde a última
+     * sincronização -- sem esse throttle, bateria toda checagem de
+     * 3 segundos do polling normal também tentaria isso, o que seria
+     * bater no PC à toa pra uma config que quase nunca muda. */
+    private fun resincronizarNuvemSeNecessario(prefs: Prefs) {
+        val agora = System.currentTimeMillis()
+        if (agora - prefs.iaUltimaSincronizacao < intervaloResyncNuvemMs) return
+        try {
+            val cfg = JarvisClient.getIaConfig(prefs.baseUrl, prefs.token) ?: return
+            prefs.iaBaseUrl = cfg.optString("base_url", "")
+            prefs.iaApiKey = cfg.optString("api_key", "")
+            prefs.iaModelo = cfg.optString("modelo", "")
+            prefs.iaAuthHeader = cfg.optString("auth_header", "Authorization")
+            prefs.iaSystemPrompt = cfg.optString("system_prompt", "")
+            prefs.iaUltimaSincronizacao = agora
+        } catch (e: Exception) {
+            // melhor-esforço -- tenta de novo no próximo ciclo throttlado
         }
     }
 

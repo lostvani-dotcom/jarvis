@@ -259,25 +259,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Puxa do PC (uma vez, enquanto ele está ligado) a configuração do
-     * provedor de IA -- depois disso dá pra CONVERSAR com o Ultron
-     * mesmo com o PC desligado (ver CloudAI.kt). Melhor-esforço: se o
-     * PC não tiver provedor remoto configurado, simplesmente não salva
+    /** Puxa do PC a configuração do provedor de IA sempre que o celular
+     * consegue alcançá-lo -- depois disso dá pra CONVERSAR com o Ultron
+     * mesmo com o PC desligado (ver CloudAI.kt, "modo nuvem"). Chamado
+     * de novo a cada conexão bem-sucedida (não só a primeira vez), pra
+     * pegar mudança de chave/modelo/personalidade -- e também em
+     * segundo plano por NotifyListenerService, então o modo nuvem se
+     * mantém atualizado mesmo sem abrir o app. Melhor-esforço: se o PC
+     * não tiver provedor remoto configurado, simplesmente não salva
      * nada e o comportamento antigo continua igual. */
     private fun sincronizarIaConfig() {
         thread {
+            val jaEstavaConfigurada = prefs.iaConfigurada
             val cfg = JarvisClient.getIaConfig(prefs.baseUrl, prefs.token) ?: return@thread
             prefs.iaBaseUrl = cfg.optString("base_url", "")
             prefs.iaApiKey = cfg.optString("api_key", "")
             prefs.iaModelo = cfg.optString("modelo", "")
             prefs.iaAuthHeader = cfg.optString("auth_header", "Authorization")
             prefs.iaSystemPrompt = cfg.optString("system_prompt", "")
-            runOnUiThread {
-                adicionarMensagem(
-                    "Conversa independente ativada -- agora dá pra conversar comigo mesmo com o " +
-                        "PC desligado (só preciso de internet no celular).",
-                    Remetente.SISTEMA,
-                )
+            prefs.iaUltimaSincronizacao = System.currentTimeMillis()
+            // Só avisa na PRIMEIRA vez que fica configurado -- sem essa
+            // checagem, toda re-sincronização (bem mais frequente agora)
+            // repetiria o mesmo aviso e poluiria o chat.
+            if (!jaEstavaConfigurada && prefs.iaConfigurada) {
+                runOnUiThread {
+                    adicionarMensagem(
+                        "Conversa independente ativada -- agora dá pra conversar comigo mesmo com o " +
+                            "PC desligado (só preciso de internet no celular).",
+                        Remetente.SISTEMA,
+                    )
+                }
             }
         }
     }
@@ -483,7 +494,10 @@ class MainActivity : AppCompatActivity() {
                     try {
                         val resposta = CloudAI.conversar(prefs, texto)
                         runOnUiThread {
-                            adicionarMensagem(resposta, Remetente.ULTRON)
+                            // "☁" no início -- só um sinal discreto de que essa
+                            // resposta veio do modo nuvem (sem memória/plugins do
+                            // PC), não uma etiqueta gritante.
+                            adicionarMensagem("☁ $resposta", Remetente.ULTRON)
                             if (faladoPorVoz) falarResposta(resposta)
                         }
                         return@thread

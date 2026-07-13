@@ -134,7 +134,51 @@
             android:id="@+id/usageAccessButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="28dp"
             android:text="Acesso ao uso"
+            android:textColor="#E5E7EB"
+            android:textAllCaps="false"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_button_secondary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CONVERSA NA NUVEM"
+            android:textColor="#7C8798"
+            android:textSize="11sp"
+            android:letterSpacing="0.12"
+            android:layout_marginBottom="10dp" />
+
+        <TextView
+            android:id="@+id/cloudStatusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:padding="12dp"
+            android:textColor="#C9D3E0"
+            android:textSize="13sp"
+            android:lineSpacingExtra="3dp"
+            android:layout_marginBottom="10dp" />
+
+        <Button
+            android:id="@+id/cloudSyncButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Sincronizar agora"
+            android:textColor="#E5E7EB"
+            android:textAllCaps="false"
+            android:stateListAnimator="@null"
+            android:backgroundTint="@null"
+            android:background="@drawable/bg_button_secondary" />
+
+        <Button
+            android:id="@+id/cloudForgetButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Esquecer conversa da nuvem"
             android:textColor="#E5E7EB"
             android:textAllCaps="false"
             android:stateListAnimator="@null"

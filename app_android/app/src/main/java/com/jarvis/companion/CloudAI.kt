@@ -9,34 +9,64 @@ import java.net.URL
  * Conversa DIRETO com o provedor de IA (formato OpenAI chat/completions,
  * mesmo protocolo de ia/providers/openai_compatible.py do PC) -- é o que
  * permite CONVERSAR com o Ultron com o PC desligado, e não só executar
- * comandos do aparelho (LocalCommands.kt).
+ * comandos do aparelho (LocalCommands.kt). É o "modo nuvem": funciona de
+ * qualquer lugar, só precisa de internet no celular.
  *
  * A configuração (URL/chave/modelo/prompt de personalidade) vem do PC
- * uma única vez, via GET /ia/config enquanto ele está ligado (ver
- * MainActivity.sincronizarIaConfig), e fica guardada em Prefs. Precisa
- * de INTERNET no celular -- "sem o PC" não é "sem rede nenhuma": o
- * cérebro da conversa continua sendo o provedor de IA remoto.
+ * via GET /ia/config sempre que o celular consegue alcançá-lo (ver
+ * MainActivity.sincronizarIaConfig e NotifyListenerService, que
+ * re-sincroniza sozinho em segundo plano) e fica guardada em Prefs.
+ *
+ * Histórico PERSISTENTE (Prefs.iaHistoricoJson) -- sobrevive fechar e
+ * reabrir o app, diferente de uma versão anterior que guardava só em
+ * memória. Isso é o que faz o modo nuvem parecer uma conversa contínua
+ * de verdade, não uma sessão que reseta toda vez que o app é fechado.
  *
  * Limitação honesta: por este caminho o Ultron NÃO tem acesso à memória,
  * base de conhecimento nem aos plugins do PC -- é conversa pura com a
- * personalidade dele. Um histórico curto (últimas trocas desta sessão do
- * app) é mantido em memória só pra conversa ter continuidade.
+ * personalidade dele, só as últimas trocas guardadas aqui pra dar
+ * continuidade.
  */
 object CloudAI {
 
     private const val MAX_HISTORICO = 12  // últimas N mensagens (user+assistant)
-    private val historico = mutableListOf<Pair<String, String>>()  // role -> texto
+
+    private fun carregarHistorico(prefs: Prefs): MutableList<Pair<String, String>> {
+        val lista = mutableListOf<Pair<String, String>>()
+        try {
+            val array = JSONArray(prefs.iaHistoricoJson)
+            for (i in 0 until array.length()) {
+                val item = array.getJSONObject(i)
+                lista.add(item.getString("role") to item.getString("content"))
+            }
+        } catch (e: Exception) {
+            // histórico corrompido/vazio -- começa do zero, sem travar a conversa
+        }
+        return lista
+    }
+
+    private fun salvarHistorico(prefs: Prefs, historico: List<Pair<String, String>>) {
+        val array = JSONArray()
+        for ((role, conteudo) in historico) {
+            array.put(JSONObject().put("role", role).put("content", conteudo))
+        }
+        prefs.iaHistoricoJson = array.toString()
+    }
+
+    fun limparHistorico(prefs: Prefs) {
+        prefs.iaHistoricoJson = "[]"
+    }
 
     fun conversar(prefs: Prefs, texto: String): String {
+        val historico = carregarHistorico(prefs)
+
         val mensagens = JSONArray()
         val prompt = prefs.iaSystemPrompt
         if (prompt.isNotEmpty()) {
             mensagens.put(JSONObject().put("role", "system").put("content", prompt))
         }
-        synchronized(historico) {
-            for ((role, conteudo) in historico) {
-                mensagens.put(JSONObject().put("role", role).put("content", conteudo))
-            }
+        for ((role, conteudo) in historico) {
+            mensagens.put(JSONObject().put("role", role).put("content", conteudo))
         }
         mensagens.put(JSONObject().put("role", "user").put("content", texto))
 
@@ -76,11 +106,11 @@ object CloudAI {
             conn.disconnect()
         }
 
-        synchronized(historico) {
-            historico.add("user" to texto)
-            historico.add("assistant" to resposta)
-            while (historico.size > MAX_HISTORICO) historico.removeAt(0)
-        }
+        historico.add("user" to texto)
+        historico.add("assistant" to resposta)
+        while (historico.size > MAX_HISTORICO) historico.removeAt(0)
+        salvarHistorico(prefs, historico)
+
         return resposta
     }
 }

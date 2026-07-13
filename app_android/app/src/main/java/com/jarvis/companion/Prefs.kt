@@ -53,6 +53,24 @@ class Prefs(context: Context) {
     val iaConfigurada: Boolean
         get() = iaBaseUrl.isNotEmpty() && iaApiKey.isNotEmpty() && iaModelo.isNotEmpty()
 
+    /** Histórico da conversa na nuvem (CloudAI.kt), serializado como
+     * JSON -- PERSISTENTE (sobrevive fechar/reabrir o app), diferente
+     * da versão anterior que guardava só em memória e esquecia tudo
+     * ao matar o processo. É o que faz "conversar sem o PC" parecer
+     * de verdade uma conversa contínua, não uma sessão que reseta toda
+     * hora. */
+    var iaHistoricoJson: String
+        get() = sp.getString("ia_historico", "[]") ?: "[]"
+        set(value) = sp.edit().putString("ia_historico", value).apply()
+
+    /** Timestamp (epoch ms) da última vez que a config de IA foi
+     * sincronizada com sucesso -- usado pra throttlar re-sincronizações
+     * automáticas em segundo plano (ver NotifyListenerService.kt),
+     * pra não bater no PC toda hora só pra checar se mudou algo. */
+    var iaUltimaSincronizacao: Long
+        get() = sp.getLong("ia_ultima_sincronizacao", 0L)
+        set(value) = sp.edit().putLong("ia_ultima_sincronizacao", value).apply()
+
     // ---- bloqueio do app (só o dono abre, via biometria do celular) ----
     var appLockAtivo: Boolean
         get() = sp.getBoolean("app_lock", false)

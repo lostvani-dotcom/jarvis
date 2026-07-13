@@ -34,11 +34,12 @@ const CATALOGO: readonly AppEntry[] = [
       "de conexão/permissões agora numa tela própria, atrás do ícone ⚙), encaminha notificações " +
       "(Instagram/WhatsApp/Telegram/Signal/Discord) e responde comandos do aparelho (bateria, " +
       "lanterna, volume, alarme, localização e mais) mesmo com o app fechado. Boa parte das " +
-      "funções roda 100% offline no próprio celular -- conversa aberta e memória completa pedem " +
-      "o Ultron do PC na mesma rede (ou, se já sincronizado uma vez, conversa direto com a nuvem " +
-      "sem precisar do PC ligado).",
-    versaoNome: "1.6",
-    versaoCodigo: 7,
+      "funções roda 100% offline no próprio celular. Modo nuvem (conversar sem o PC ligado) com " +
+      "memória persistente e sincronização automática em segundo plano -- conversa aberta com " +
+      "acesso à memória/base de conhecimento completa continua exigindo o Ultron do PC na mesma " +
+      "rede.",
+    versaoNome: "1.7",
+    versaoCodigo: 8,
     tamanhoMb: 5.4,
     requisito: "Android 8.0 ou superior",
     arquivo: "apps/ultron-companion.apk",
