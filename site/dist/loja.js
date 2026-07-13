@@ -42,6 +42,22 @@ const CATALOGO = [
         glifo: "L",
         atualizadoEm: "13/07/2026",
     },
+    {
+        id: "redcore-mobile",
+        nome: "RedCore",
+        categoria: "Navegador",
+        resumo: "O navegador do Ultron, agora no celular -- abas, busca embutida, mesmo visual do PC.",
+        descricao: "Versão leve do RedCore do PC (gui/redcore.py): abas de verdade, barra de endereço que também " +
+            "pesquisa no Google, voltar/avançar/recarregar. Favoritos, downloads, bloqueio de anúncios e aba " +
+            "privada continuam exclusivos do RedCore do PC por enquanto -- este é o essencial, no bolso.",
+        versaoNome: "1.0",
+        versaoCodigo: 1,
+        tamanhoMb: 5.3,
+        requisito: "Android 8.0 ou superior",
+        arquivo: "apps/redcore-mobile.apk",
+        glifo: "R",
+        atualizadoEm: "13/07/2026",
+    },
 ];
 function formatarTamanho(mb) {
     return mb.toFixed(1).replace(".", ",") + " MB";
@@ -51,11 +67,11 @@ function criarCard(app) {
     card.className = "app-card";
     card.id = app.id;
     card.innerHTML = `
-    <div class="app-icon" aria-hidden="true">${app.glifo}</div>
+    <div class="app-icon" data-categoria="${app.categoria}" aria-hidden="true">${app.glifo}</div>
     <div class="app-body">
       <div class="app-heading">
         <h2>${app.nome}</h2>
-        <span class="app-category">${app.categoria}</span>
+        <span class="app-category" data-categoria="${app.categoria}">${app.categoria}</span>
       </div>
       <p class="app-resumo">${app.resumo}</p>
       <dl class="app-meta">

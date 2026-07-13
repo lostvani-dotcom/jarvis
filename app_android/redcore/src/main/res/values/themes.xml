@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.RedCore" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="colorPrimary">#C22A1F</item>
+        <item name="colorPrimaryDark">#000000</item>
+        <item name="colorAccent">#FF5F52</item>
+    </style>
+</resources>

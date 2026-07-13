@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.RedCore"
+        android:usesCleartextTraffic="true">
+
+        <!--
+        RedCore Mobile: versão leve do navegador do Ultron (gui/redcore.py,
+        no PC) pro celular. Abas, barra de endereço, voltar/avançar,
+        pesquisa via Google quando o texto não parece uma URL, mesmo
+        espírito do desktop, sem tentar portar cada recurso dele
+        (favoritos/downloads/bloqueio de anúncios/aba privada continuam
+        exclusivos do RedCore do PC por enquanto). usesCleartextTraffic
+        permite abrir sites http:// antigos além dos https:// normais,
+        como qualquer navegador de verdade.
+        -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>

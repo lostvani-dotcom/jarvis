@@ -39,6 +39,15 @@ CATALOGO = [
         "versaoCodigo": 1,
         "arquivo": "ultron-loja.apk",
     },
+    {
+        "id": "redcore-mobile",
+        "nome": "RedCore",
+        "categoria": "Navegador",
+        "resumo": "O navegador do Ultron, agora no celular -- abas, busca embutida, mesmo visual do PC.",
+        "versaoNome": "1.0",
+        "versaoCodigo": 1,
+        "arquivo": "redcore-mobile.apk",
+    },
 ]
 
 

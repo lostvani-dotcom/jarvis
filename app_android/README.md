@@ -1,8 +1,23 @@
-# app_android/ — App companion do Jarvis (Android nativo)
+# app_android/ — Apps Android do ecossistema Ultron
 
-App Android nativo (Kotlin) que conecta no Jarvis rodando no PC
-(via [`server/`](../server/README.md), o servidor HTTP local) pela
-mesma rede Wi-Fi -- sem cabo, sem ADB, sem expor nada na internet.
+Projeto Gradle com TRÊS apps nativos (Kotlin), um módulo cada, todos
+conectando no Ultron rodando no PC (via [`server/`](../server/README.md),
+o servidor HTTP local) pela mesma rede Wi-Fi -- sem cabo, sem ADB, sem
+expor nada na internet. Baixe/instale todos pela [Loja Ultron](../site/loja.html)
+(`.\gradlew.bat assembleDebug` compila os três de uma vez; ou
+`:app:assembleDebug` / `:loja:assembleDebug` / `:redcore:assembleDebug`
+pra compilar um só):
+
+- **`app/`** (`com.jarvis.companion`, descrito abaixo) -- chat, comandos
+  do celular, notificações.
+- **`loja/`** (`com.ultron.loja`) -- a própria loja: descobre o Ultron
+  na rede, lista o catálogo (`server/loja_catalogo.py`) e instala
+  qualquer um dos três apps com um toque.
+- **`redcore/`** (`com.ultron.redcore`) -- versão leve do navegador
+  RedCore do PC (`gui/redcore.py`) pro celular: abas, barra de
+  endereço com busca embutida, mesmo visual vermelho/preto.
+
+## App Companion (`app/`)
 
 Funções:
 1. **Chat com o Jarvis** direto do celular (tela principal).

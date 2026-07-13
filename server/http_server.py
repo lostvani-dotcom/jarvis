@@ -52,9 +52,15 @@ Endpoints:
         server/loja_catalogo.py; usado pelo app "Loja Ultron", app_android/loja/)
     GET  /loja/apps/<arquivo>          -> baixa um .apk do catálogo da loja (sem
         auth, mesmo motivo de /app.apk -- só nomes já cadastrados no catálogo)
+    GET  /loja                        -> redireciona pra /site/loja.html (atalho)
+    GET  /dossie                       -> redireciona pra /site/index.html (atalho)
+    GET  /site/<caminho>                -> serve o site estático (site/, HTML/CSS/TS
+        compilado) direto deste servidor -- mesmos arquivos do repositório, só que
+        alcançáveis pelo celular também, sem precisar abrir o arquivo local no PC.
 """
 
 import json
+import mimetypes
 import os
 import re
 import secrets
@@ -75,6 +81,23 @@ _pending_messages = []
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _APK_PATH = os.path.join(_BASE_DIR, "app_android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
 _APP_GRADLE_PATH = os.path.join(_BASE_DIR, "app_android", "app", "build.gradle.kts")
+_SITE_DIR = os.path.join(_BASE_DIR, "site")
+
+
+def _resolver_arquivo_site(caminho_relativo: str):
+    """Resolve um caminho pedido em GET /site/<caminho> com segurança
+    -- normaliza e confere que o resultado continua DENTRO de site/,
+    senão um pedido tipo /site/../config/config.json poderia vazar
+    qualquer arquivo do projeto. Retorna None se o caminho escapa de
+    site/ ou o arquivo não existe."""
+    limpo = caminho_relativo.split("?")[0].lstrip("/")
+    if not limpo:
+        limpo = "index.html"
+    alvo = os.path.normpath(os.path.join(_SITE_DIR, limpo))
+    raiz = os.path.abspath(_SITE_DIR)
+    if alvo != raiz and not alvo.startswith(raiz + os.sep):
+        return None
+    return alvo if os.path.isfile(alvo) else None
 
 
 def get_or_create_token() -> str:
@@ -252,6 +275,28 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_site_file(self, caminho_relativo: str):
+        # Sem auth (é conteúdo público explicativo, ver docstring do
+        # módulo -- mesmo perímetro de confiança de /app.apk).
+        alvo = _resolver_arquivo_site(caminho_relativo)
+        if alvo is None:
+            self._send_json(404, {"erro": "arquivo não encontrado no site"})
+            return
+        tipo, _ = mimetypes.guess_type(alvo)
+        with open(alvo, "rb") as f:
+            body = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", tipo or "application/octet-stream")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_redirect(self, destino: str):
+        self.send_response(302)
+        self.send_header("Location", destino)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def _read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", 0) or 0)
         if length == 0:
@@ -299,6 +344,18 @@ class _Handler(BaseHTTPRequestHandler):
 
         if self.path.startswith("/loja/apps/"):
             self._send_loja_apk(self.path[len("/loja/apps/"):])
+            return
+
+        if self.path == "/loja":
+            self._send_redirect("/site/loja.html")
+            return
+
+        if self.path == "/dossie":
+            self._send_redirect("/site/index.html")
+            return
+
+        if self.path.startswith("/site/") or self.path == "/site":
+            self._send_site_file(self.path[len("/site/"):] if self.path != "/site" else "")
             return
 
         if self.path.startswith("/poll"):

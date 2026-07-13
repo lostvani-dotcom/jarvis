@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 rootProject.name = "JarvisCompanion"
 include(":app")
 include(":loja")
+include(":redcore")

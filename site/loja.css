@@ -55,6 +55,10 @@ body { background: var(--ink); }
   .app-card { grid-template-columns: 1fr; }
 }
 
+/* Cada categoria carrega a cor de identidade do próprio app real: o
+   Companion é ciano (mesmo tema do app Android), a Loja é dourado
+   (papel de "sistema"), o RedCore é vermelho (a própria cor dele,
+   tanto no PC quanto aqui). */
 .app-icon {
   width: 88px;
   height: 88px;
@@ -70,6 +74,18 @@ body { background: var(--ink); }
   flex: none;
   box-shadow: 0 10px 26px -12px color-mix(in srgb, var(--core) 70%, transparent);
 }
+.app-icon[data-categoria="Produtividade"] {
+  background: linear-gradient(155deg, var(--signal), color-mix(in srgb, var(--signal) 55%, black));
+  box-shadow: 0 10px 26px -12px color-mix(in srgb, var(--signal) 60%, transparent);
+}
+.app-icon[data-categoria="Sistema"] {
+  background: linear-gradient(155deg, var(--gold), color-mix(in srgb, var(--gold) 55%, black));
+  box-shadow: 0 10px 26px -12px color-mix(in srgb, var(--gold) 60%, transparent);
+}
+
+.app-category[data-categoria="Produtividade"] { color: var(--signal); border-color: color-mix(in srgb, var(--signal) 35%, var(--hairline)); }
+.app-category[data-categoria="Sistema"] { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 35%, var(--hairline)); }
+.app-category[data-categoria="Navegador"] { color: var(--core); border-color: color-mix(in srgb, var(--core) 35%, var(--hairline)); }
 
 .app-heading {
   display: flex;

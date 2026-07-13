@@ -17,12 +17,19 @@ interface BootLine {
   highlight?: string;
 }
 
+/** Nome do operador reconhecido no boot -- mesmo conceito da intro
+ * cinematográfica do PC (gui/intro.py: "que bom revê-lo"), só que fixo
+ * aqui (o site é estático, não fala com o Ultron de verdade pra saber
+ * quem está na tela). Troque pelo seu nome se for reaproveitar este
+ * site pra outra instância do Ultron. */
+const OPERADOR = "Angelo";
+
 const BOOT_LINES: readonly BootLine[] = [
   { text: "> inicializando núcleo cognitivo...", highlight: "núcleo cognitivo" },
   { text: "> memória local [OK] · plugins [42 carregados]" },
   { text: "> voz [OK] · visão [OK] · automação [OK]" },
   { text: "> nenhuma API externa obrigatória [confirmado]" },
-  { text: "> operador reconhecido: bem-vindo de volta", highlight: "bem-vindo de volta" },
+  { text: `> operador reconhecido: que bom revê-lo, ${OPERADOR}`, highlight: OPERADOR },
   { text: "> cognitive core initialized" },
 ];
 
