@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="18dp"
+    android:background="@drawable/bg_app_gradient">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="LOJA ULTRON"
+        android:textColor="#FF5F52"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.18"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="4dp"
+        android:shadowColor="#80C22A1F"
+        android:shadowRadius="14"
+        android:shadowDx="0"
+        android:shadowDy="0" />
+
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Procurando o Ultron na rede..."
+        android:textColor="#C9BABA"
+        android:textSize="13sp"
+        android:gravity="center_horizontal"
+        android:layout_marginBottom="14dp" />
+
+    <Button
+        android:id="@+id/refreshButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="Buscar o Ultron automaticamente"
+        android:textColor="#FFF9F8"
+        android:textAllCaps="false"
+        android:textStyle="bold"
+        android:stateListAnimator="@null"
+        android:backgroundTint="@null"
+        android:background="@drawable/bg_button_primary" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/appList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+
+</LinearLayout>

@@ -26,6 +26,22 @@ const CATALOGO = [
         glifo: "U",
         atualizadoEm: "13/07/2026",
     },
+    {
+        id: "ultron-loja",
+        nome: "Loja Ultron",
+        categoria: "Sistema",
+        resumo: "A própria loja -- descobre o Ultron na rede e instala/atualiza os apps do ecossistema com um toque.",
+        descricao: "App dedicado só a isso: procurar o Ultron na Wi-Fi de casa, listar o catálogo publicado por ele " +
+            "(GET /loja/catalogo) e baixar/instalar qualquer app da lista -- sem loja de terceiros, sem conta, " +
+            "sem rastreamento. O mesmo catálogo que alimenta esta página também alimenta o app.",
+        versaoNome: "1.0",
+        versaoCodigo: 1,
+        tamanhoMb: 5.3,
+        requisito: "Android 8.0 ou superior",
+        arquivo: "apps/ultron-loja.apk",
+        glifo: "L",
+        atualizadoEm: "13/07/2026",
+    },
 ];
 function formatarTamanho(mb) {
     return mb.toFixed(1).replace(".", ",") + " MB";

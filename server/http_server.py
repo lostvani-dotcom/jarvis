@@ -48,6 +48,10 @@ Endpoints:
     GET  /app/version                -> {"versionCode": int, "versionName": str} (sem auth
         -- o app compara com a própria versão instalada e se oferece pra
         se autoatualizar, baixando /app.apk e disparando a instalação)
+    GET  /loja/catalogo               -> {"apps": [...]} (sem auth -- ver
+        server/loja_catalogo.py; usado pelo app "Loja Ultron", app_android/loja/)
+    GET  /loja/apps/<arquivo>          -> baixa um .apk do catálogo da loja (sem
+        auth, mesmo motivo de /app.apk -- só nomes já cadastrados no catálogo)
 """
 
 import json
@@ -171,6 +175,26 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_loja_apk(self, arquivo: str):
+        # Sem auth (mesmo padrão de /app.apk -- é só o instalador). O
+        # nome do arquivo só é aceito se bater com uma entrada JÁ
+        # cadastrada no catálogo (loja_catalogo.caminho_apk), então uma
+        # URL tipo /loja/apps/../../config/config.json nunca resolve
+        # pra nada -- sem isso, o path viria direto da URL do cliente.
+        from server import loja_catalogo
+        caminho = loja_catalogo.caminho_apk(arquivo)
+        if not caminho:
+            self._send_json(404, {"erro": f"'{arquivo}' não está no catálogo da loja"})
+            return
+        with open(caminho, "rb") as f:
+            body = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/vnd.android.package-archive")
+        self.send_header("Content-Disposition", f'attachment; filename="{arquivo}"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _apk_url(self) -> str:
         host_header = self.headers.get("Host", "localhost:8765")
         return f"http://{host_header}/app.apk"
@@ -264,6 +288,17 @@ class _Handler(BaseHTTPRequestHandler):
 
         if self.path == "/app/version":
             self._send_json(200, _app_version())
+            return
+
+        if self.path == "/loja/catalogo":
+            # Sem auth -- mesmo padrão de /app.apk e /app/version: é só
+            # metadado de instalador, não dado do usuário.
+            from server import loja_catalogo
+            self._send_json(200, {"apps": loja_catalogo.listar()})
+            return
+
+        if self.path.startswith("/loja/apps/"):
+            self._send_loja_apk(self.path[len("/loja/apps/"):])
             return
 
         if self.path.startswith("/poll"):
