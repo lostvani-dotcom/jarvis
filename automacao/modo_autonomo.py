@@ -29,6 +29,7 @@ timeline (core/timeline.py, eventos "modo_autonomo_*") -- nada roda
 """
 
 import json
+import threading
 from datetime import datetime
 
 from core.database import get_database
@@ -51,7 +52,7 @@ CREATE TABLE IF NOT EXISTS automacao_objetivos_autonomos (
 
 _INTERVALO_TICK_SEGUNDOS = 60
 _OCIOSIDADE_PADRAO_MINUTOS = 5
-_executando = False  # trava simples -- nunca dois ciclos ao mesmo tempo
+_lock = threading.Lock()  # nunca dois ciclos ao mesmo tempo (ver executar_proximo_objetivo)
 
 
 def _ensure_schema():
@@ -116,43 +117,58 @@ def executar_proximo_objetivo(jarvis) -> dict:
     motor de modo_automatico.py) -- usado tanto pelo ciclo automático
     (_tick) quanto pelo comando de chat "executa o próximo objetivo
     autônomo" (pra ver acontecer na hora, sem esperar o ócio). Retorna
-    {"objetivo": None} se não havia nada pendente."""
-    alvo = _proximo_pendente(jarvis.user_id)
-    if not alvo:
+    {"objetivo": None} se não havia nada pendente.
+
+    _lock.acquire(blocking=False) em vez de bloquear: sem essa trava
+    (não bloqueante) AQUI dentro -- e não só em _tick, como antes --,
+    o ciclo automático (dispara no ócio, sem teclado/mouse) e o comando
+    de chat "executa o próximo objetivo autônomo" (plugins/modo_autonomo.py,
+    chamado direto, sem passar por _tick) podiam cair ao mesmo tempo:
+    os dois leem o MESMO objetivo pendente mais antigo (o status só vira
+    algo diferente de 'pendente' DEPOIS de terminar de executar), e
+    então o mesmo objetivo era executado duas vezes em paralelo --
+    duplicando ações de verdade (ex.: mandar a mesma mensagem duas
+    vezes). Se já tem um ciclo rodando, esta chamada desiste na hora
+    (não fica esperando -- o comando de chat é síncrono, e um objetivo
+    pode levar bastante tempo pra terminar)."""
+    if not _lock.acquire(blocking=False):
         return {"objetivo": None}
+    try:
+        alvo = _proximo_pendente(jarvis.user_id)
+        if not alvo:
+            return {"objetivo": None}
 
-    from automacao import modo_automatico
-    context = jarvis._context()
-    relatorio = modo_automatico.executar(jarvis, alvo["objetivo"], context)
+        from automacao import modo_automatico
+        context = jarvis._context()
+        relatorio = modo_automatico.executar(jarvis, alvo["objetivo"], context)
 
-    feitos = sum(1 for p in relatorio["passos"] if p["executado"])
-    total = len(relatorio["passos"])
-    if relatorio["recusa"]:
-        status = "recusado"
-        resumo = f"Recusado: {relatorio['recusa']}"
-    elif total and feitos == total:
-        status = "concluido"
-        resumo = f"Concluído ({feitos}/{total} passos)."
-    elif feitos:
-        status = "parcial"
-        resumo = f"Parcial ({feitos}/{total} passos) -- parou em: {relatorio['passos'][-1]['resposta']}"
-    else:
-        status = "falhou"
-        resumo = "Nenhum passo executado."
+        feitos = sum(1 for p in relatorio["passos"] if p["executado"])
+        total = len(relatorio["passos"])
+        if relatorio["recusa"]:
+            status = "recusado"
+            resumo = f"Recusado: {relatorio['recusa']}"
+        elif total and feitos == total:
+            status = "concluido"
+            resumo = f"Concluído ({feitos}/{total} passos)."
+        elif feitos:
+            status = "parcial"
+            resumo = f"Parcial ({feitos}/{total} passos) -- parou em: {relatorio['passos'][-1]['resposta']}"
+        else:
+            status = "falhou"
+            resumo = "Nenhum passo executado."
 
-    get_database().execute(
-        "UPDATE automacao_objetivos_autonomos SET status=?, executado_em=?, resultado_resumo=? "
-        "WHERE id=?",
-        (status, datetime.now().isoformat(), resumo, alvo["id"]),
-    )
-    registrar("modo_autonomo_ciclo", f"{alvo['objetivo'][:80]} -- {status}")
-    return {"objetivo": alvo["objetivo"], "status": status, "resumo": resumo, "relatorio": relatorio}
+        get_database().execute(
+            "UPDATE automacao_objetivos_autonomos SET status=?, executado_em=?, resultado_resumo=? "
+            "WHERE id=?",
+            (status, datetime.now().isoformat(), resumo, alvo["id"]),
+        )
+        registrar("modo_autonomo_ciclo", f"{alvo['objetivo'][:80]} -- {status}")
+        return {"objetivo": alvo["objetivo"], "status": status, "resumo": resumo, "relatorio": relatorio}
+    finally:
+        _lock.release()
 
 
 def _tick(jarvis):
-    global _executando
-    if _executando:
-        return  # ciclo anterior ainda rodando (não deveria, mas por segurança)
     settings = jarvis.settings
     if not settings.get("personalidade.modo_autonomo", False):
         return
@@ -169,14 +185,15 @@ def _tick(jarvis):
     if not _proximo_pendente(jarvis.user_id):
         return
 
-    _executando = True
+    # A trava de verdade (nunca dois ciclos ao mesmo tempo) mora dentro de
+    # executar_proximo_objetivo() -- protege tanto este tick automático
+    # quanto o comando de chat "executa o próximo objetivo autônomo", que
+    # chama a mesma função direto (ver seu docstring).
     try:
         resultado = executar_proximo_objetivo(jarvis)
     except Exception as e:
         log.warning("modo_autonomo: falha no ciclo (%s)", e)
         return
-    finally:
-        _executando = False
 
     if resultado.get("objetivo"):
         from automacao.notify import notify

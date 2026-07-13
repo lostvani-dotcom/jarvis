@@ -26,8 +26,8 @@ CATALOGO = [
         "nome": "Ultron Companion",
         "categoria": "Produtividade",
         "resumo": "O Ultron no seu bolso -- controla o celular e conversa com o núcleo do PC pela Wi-Fi. Agora com histórico de conversas, gravação de amostra de voz, reconhecimento facial pela câmera, tela do PC ao vivo, atalho de hardware (3x volume) e estatísticas de uso.",
-        "versaoNome": "1.9",
-        "versaoCodigo": 10,
+        "versaoNome": "1.9.1",
+        "versaoCodigo": 11,
         "arquivo": "ultron-companion.apk",
     },
     {

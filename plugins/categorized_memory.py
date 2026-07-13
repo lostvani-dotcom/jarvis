@@ -96,7 +96,11 @@ def _find_plural_category(text: str):
 _SALVAR_RE = re.compile(r"\bsalv[ae]\w*\s+(?:a|o)\s+(.+?):\s*(.+)")
 _ATUALIZAR_RE = re.compile(r"\batualiz[ae]\w*\s+(?:a|o)\s+(.+?):\s*(.+)")
 _REMOVER_RE = re.compile(r"\bremov[ae]\w*\s+(?:a|o)\s+(.+)")
-_BUSCAR_RE = re.compile(r"\bbusc[ae]\w*\s+sobre\s+(.+)")
+# "busque" (subjuntivo/imperativo de "buscar") troca o "c" por "qu" antes
+# do "e" -- "busc[ae]" sozinho não cobre essa forma (só "busca"/"buscar"),
+# e é exatamente essa a conjugação do exemplo documentado ("busque sobre
+# Ultron"), que ficava sem resposta nenhuma sem essa alternativa.
+_BUSCAR_RE = re.compile(r"\b(?:busc[ae]\w*|busque\w*)\s+sobre\s+(.+)")
 _RESUMO_RE = re.compile(r"\bminha\s+mem[oó]ria\b|\bresumo\s+da\s+mem[oó]ria\b")
 _LISTAR_RE = re.compile(r"\blist[ae]\w*\s+(?:meus|minhas)\b")
 

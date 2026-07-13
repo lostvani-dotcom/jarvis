@@ -5,7 +5,7 @@ import re
 class FerramentaDeDepuração(BasePlugin):
     name = "depuração_rápida"
     description = "Ferramenta para ajudar a depurar código rapidamente"
-    triggers = ["depurar código", "erro na tela"]
+    triggers = ["depurar código", "depurar codigo", "erro na tela"]
 
     def handle(self, text: str, context: dict):
         # Verifica se o usuário está mencionando um erro específico
@@ -14,7 +14,7 @@ class FerramentaDeDepuração(BasePlugin):
             return Answer("Posso ajudar a depurar o erro. Qual é o código que está dando erro?", Confidence.RELIABLE_SOURCE)
         
         # Se o usuário não mencionou um erro específico, oferece uma ferramenta de depuração geral
-        elif re.search(r"depurar código|erro na tela", text.lower()):
+        elif re.search(r"depurar c[oó]digo|erro na tela", text.lower()):
             # Oferece uma ferramenta de depuração geral
             return Answer("Posso ajudar a depurar o código. Qual é o tipo de erro que está ocorrendo?", Confidence.RELIABLE_SOURCE)
         

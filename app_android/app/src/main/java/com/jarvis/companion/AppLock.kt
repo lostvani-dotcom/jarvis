@@ -1,5 +1,6 @@
 package com.jarvis.companion
 
+import android.annotation.TargetApi
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
@@ -55,6 +56,9 @@ object AppLock {
         }
     }
 
+    // Só chamado com SDK_INT >= P (ver autenticar() acima) -- @TargetApi
+    // silencia o NewApi do lint sem esconder um guard real que já existe.
+    @TargetApi(Build.VERSION_CODES.P)
     private fun autenticarBiometricPrompt(activity: Activity, onSucesso: () -> Unit, onFalha: () -> Unit) {
         @Suppress("DEPRECATION")
         val builder = BiometricPrompt.Builder(activity)

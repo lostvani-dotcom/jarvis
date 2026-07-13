@@ -46,7 +46,11 @@ _ROBOTICA_LIGA_RE = re.compile(r"\blig[ae]\w*\s+.*\bvoz\s+rob[óo]tica\b|\bativ[
 _ROBOTICA_DESLIGA_RE = re.compile(r"\b(deslig[ae]|desativ[ae])\w*\s+.*\bvoz\s+rob[óo]tica\b", re.IGNORECASE)
 
 _MIC_LISTAR_RE = re.compile(r"\bque\s+microfones?\s+voc[eê]\s+tem\b|\blist[ae]\w*\s+(?:os\s+)?microfones?\b", re.IGNORECASE)
-_MIC_USAR_RE = re.compile(r"\b(?:usa|use|muda|mude)\w*\s+(?:pro?\s+|para\s+o\s+)?microfone\s+(\d+)\b", re.IGNORECASE)
+# O conector opcional cobria "pro microfone"/"para o microfone" (formas
+# contraídas ou completas de "para o") mas não o artigo solto "o" --
+# faltava exatamente a forma do exemplo documentado ("usa o microfone
+# <número>"), que ficava sem nenhuma resposta.
+_MIC_USAR_RE = re.compile(r"\b(?:usa|use|muda|mude)\w*\s+(?:pro?\s+|para\s+o\s+|o\s+)?microfone\s+(\d+)\b", re.IGNORECASE)
 
 
 class VozConfigPlugin(BasePlugin):

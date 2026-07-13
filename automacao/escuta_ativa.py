@@ -106,6 +106,13 @@ def _loop_escuta(stt, parar_evento):
             resultado = stt.listen_and_transcribe_detalhado(duration_seconds=_DURACAO_TRECHO_SEGUNDOS)
         except Exception as e:
             log.warning("falha ao transcrever durante escuta ativa: %s", e)
+            # Sem esperar aqui, um motor de voz que falha na hora (ex.: sem
+            # microfone disponível) vira um loop apertado sem pausa nenhuma
+            # -- consome uma CPU inteira e enche o log até o fim da sessão
+            # (até 30 min). parar_evento.wait() pausa no mesmo ritmo de uma
+            # iteração normal, mas continua acordando na hora se "para de
+            # escutar" for chamado nesse meio-tempo.
+            parar_evento.wait(_DURACAO_TRECHO_SEGUNDOS)
             continue
         texto = (resultado.get("texto") or "").strip()
         if texto and resultado.get("confiavel", True):

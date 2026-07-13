@@ -56,6 +56,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--signal); outlin
   position: fixed;
   top: 0;
   left: 0;
+  right: 0;
   z-index: 10;
   padding: 24px 28px;
   display: flex;
@@ -64,6 +65,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--signal); outlin
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 .site-nav a {
   color: var(--steel-dim);
@@ -75,6 +77,71 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--signal); outlin
 .site-nav a:hover, .site-nav a[aria-current="page"] {
   color: var(--core);
   border-bottom-color: var(--core);
+}
+
+/* Fundo com blur aparece só depois de rolar um pouco (ver initScrollChrome
+   em interactions.ts) -- barra fica transparente no topo da página, onde já
+   tem espaço de sobra antes do conteúdo. */
+.site-nav.scrolled {
+  background: color-mix(in srgb, var(--ink) 78%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* ---------- scroll progress ---------- */
+
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--core), var(--signal));
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* ---------- scroll reveal ---------- */
+
+/* Estado inicial de tudo marcado com [data-reveal] (ver initScrollReveal
+   em interactions.ts) -- some com um leve fade + subida, revelado quando
+   entra na tela. `--reveal-delay` é opcional, escalonado só pelos cards
+   da loja (ver loja.ts); nos demais elementos cai no padrão 0s. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition-delay: var(--reveal-delay, 0s);
+}
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- cursor glow ---------- */
+
+/* Brilho que segue o cursor (ver initGlowSurfaces em interactions.ts,
+   que escreve --mx/--my a cada pointermove). Sem cursor/toque as
+   variáveis nunca são definidas e o gradiente cai no centro do
+   elemento -- por isso o fallback 50% 50%. */
+.glow-surface {
+  /* Sem overflow:hidden de propósito -- o pseudo-elemento já fica
+     contido em inset:0, e um dos cards (companion) tem um link ("Ver
+     a Loja") cujo outline de foco não pode ser cortado nas bordas. */
+  position: relative;
+}
+.glow-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--core) 16%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.glow-surface:hover::after {
+  opacity: 1;
 }
 
 /* ---------- hero ---------- */
@@ -103,6 +170,36 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--signal); outlin
   mask-image: radial-gradient(ellipse 700px 500px at 50% 30%, black, transparent 75%);
   opacity: 0.5;
   pointer-events: none;
+}
+
+/* Decoração puramente visual atrás do boot (aria-hidden) -- tirada do
+   fluxo com position:absolute, então não desloca o conteúdo real do
+   hero, que continua centralizado por .hero (flex column). */
+.core-orb {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  width: 96px;
+  height: 96px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.core-orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--core) 35%, transparent);
+}
+.core-orb-ring + .core-orb-ring {
+  inset: 16px;
+  border-color: color-mix(in srgb, var(--signal) 30%, transparent);
+}
+.core-orb-core {
+  position: absolute;
+  inset: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--core), var(--core-deep));
+  box-shadow: 0 0 32px color-mix(in srgb, var(--core) 55%, transparent);
 }
 
 .boot {

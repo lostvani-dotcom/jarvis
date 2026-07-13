@@ -16,7 +16,6 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.Gravity
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -24,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.GravityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.jarvis.companion.databinding.ActivityMainBinding
 import java.io.File
@@ -91,9 +91,9 @@ class MainActivity : AppCompatActivity() {
 
         binding.menuButton.setOnClickListener {
             binding.drawerLayout.let {
-                if (it.isDrawerOpen(Gravity.START)) it.closeDrawer(Gravity.START) else {
+                if (it.isDrawerOpen(GravityCompat.START)) it.closeDrawer(GravityCompat.START) else {
                     atualizarListaDeSessoes()
-                    it.openDrawer(Gravity.START)
+                    it.openDrawer(GravityCompat.START)
                 }
             }
         }
@@ -606,7 +606,7 @@ class MainActivity : AppCompatActivity() {
         binding.chatRecycler.post {
             binding.chatRecycler.scrollToPosition(maxOf(0, chatAdapter.itemCount - 1))
         }
-        binding.drawerLayout.closeDrawer(Gravity.START)
+        binding.drawerLayout.closeDrawer(GravityCompat.START)
     }
 
     /** Guarda a conversa atual (se tiver algo) e começa uma em branco,
@@ -615,7 +615,7 @@ class MainActivity : AppCompatActivity() {
         autosalvarSessaoAtual()
         sessaoAtualId = Sessions.novoId()
         chatAdapter.substituirTudo(emptyList())
-        binding.drawerLayout.closeDrawer(Gravity.START)
+        binding.drawerLayout.closeDrawer(GravityCompat.START)
         adicionarMensagem("Nova conversa. Pode mandar.", Remetente.SISTEMA)
     }
 

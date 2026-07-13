@@ -8,7 +8,12 @@ def status() -> dict:
     partes = {
         "camera_opencv": HAS_OPENCV,
         "ocr": ocr.available(),
-        "reconhecimento_facial": faces.recognize_available(),
+        # LBPH (faces.lbph_available) é o caminho de verdade usado pelos
+        # comandos de chat/servidor (ver docstring de visao/faces.py) --
+        # recognize_available() é só o dlib/face_recognition antigo, sem
+        # ele este relatório dizia "reconhecimento facial indisponível"
+        # mesmo com opencv-contrib-python instalado e funcionando.
+        "reconhecimento_facial": faces.lbph_available() or faces.recognize_available(),
         "deteccao_objetos": objects.available(),
         "gestos": gestures.available(),
         "captura_tela": screen.available(),

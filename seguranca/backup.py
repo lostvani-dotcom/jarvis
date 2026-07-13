@@ -70,6 +70,7 @@ def criar_pacote_completo() -> str:
         for caminho in arquivos:
             if os.path.isfile(caminho):
                 z.write(caminho, arcname=os.path.basename(caminho))
+    _cleanup_old_pacotes_completos()
     return destino
 
 
@@ -79,9 +80,29 @@ def list_backups() -> list:
     return sorted(glob.glob(os.path.join(BACKUP_DIR, "jarvis_*.db")), reverse=True)
 
 
+def list_pacotes_completos() -> list:
+    if not os.path.isdir(BACKUP_DIR):
+        return []
+    return sorted(glob.glob(os.path.join(BACKUP_DIR, "ultron_completo_*.zip")), reverse=True)
+
+
 def _cleanup_old_backups():
     max_files = int(get_settings().get("seguranca.backup_max_arquivos", 10))
     for old_file in list_backups()[max_files:]:
+        try:
+            os.remove(old_file)
+        except OSError:
+            pass
+
+
+def _cleanup_old_pacotes_completos():
+    # Sem isso, cada chamada a criar_pacote_completo() (comando de chat
+    # "faz um backup completo", ou GET /backup/completo do celular)
+    # deixava um .zip novo pra sempre em BACKUP_DIR -- diferente de
+    # create_backup() (só o .db), que já limpa os antigos. Mesmo limite
+    # (`seguranca.backup_max_arquivos`) e mesma lógica de _cleanup_old_backups().
+    max_files = int(get_settings().get("seguranca.backup_max_arquivos", 10))
+    for old_file in list_pacotes_completos()[max_files:]:
         try:
             os.remove(old_file)
         except OSError:

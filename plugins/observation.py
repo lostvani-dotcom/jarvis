@@ -128,18 +128,23 @@ def _classify(text: str):
     tem_alvo = bool(_TARGET_RE.search(t))
     tem_de_olho = bool(_STRONG_RECURRING_RE.search(t))
     tem_intervalo = bool(_INTERVAL_RE.search(t))
+    tem_recorrencia_fraca = any(p in t for p in _WEAK_RECURRING_PHRASES)
 
     # Evidência mínima de que a frase é sobre observação: verbo+alvo
-    # explícitos, "de olho" sozinho, ou verbo+intervalo ("observe a
-    # cada 10 minutos", sem precisar repetir "minha tela").
-    sinal_suficiente = (tem_acao and tem_alvo) or tem_de_olho or (tem_acao and tem_intervalo)
+    # explícitos, "de olho" sozinho, ou verbo+intervalo/recorrência
+    # ("observe a cada 10 minutos", "observe a todo momento" -- exemplo
+    # documentado no topo do arquivo -- sem precisar repetir "minha
+    # tela"). Faltava o caso de recorrência fraca aqui: sem ele, "observe
+    # a todo momento" tinha verbo mas nenhum alvo explícito e o próprio
+    # exemplo documentado não disparava o plugin.
+    sinal_suficiente = (
+        (tem_acao and tem_alvo) or tem_de_olho
+        or (tem_acao and (tem_intervalo or tem_recorrencia_fraca))
+    )
     if not sinal_suficiente:
         return None
 
-    is_recurring = (
-        tem_de_olho or tem_intervalo
-        or any(p in t for p in _WEAK_RECURRING_PHRASES)
-    )
+    is_recurring = tem_de_olho or tem_intervalo or tem_recorrencia_fraca
     return "start" if is_recurring else "once"
 
 

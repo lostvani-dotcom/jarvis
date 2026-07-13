@@ -25,8 +25,8 @@ const CATALOGO = [
             "offline no próprio celular. Modo nuvem (conversar sem o PC ligado) com memória persistente " +
             "e sincronização automática em segundo plano -- conversa aberta com acesso à memória/base " +
             "de conhecimento completa continua exigindo o Ultron do PC na mesma rede.",
-        versaoNome: "1.9",
-        versaoCodigo: 10,
+        versaoNome: "1.9.1",
+        versaoCodigo: 11,
         tamanhoMb: 5.4,
         requisito: "Android 8.0 ou superior",
         arquivo: "apps/ultron-companion.apk",
@@ -73,10 +73,15 @@ const CATALOGO = [
 function formatarTamanho(mb) {
     return mb.toFixed(1).replace(".", ",") + " MB";
 }
-function criarCard(app) {
+function criarCard(app, indice) {
     const card = document.createElement("article");
-    card.className = "app-card";
+    card.className = "app-card glow-surface";
     card.id = app.id;
+    card.dataset.reveal = "";
+    // Escalona a entrada de cada card (ver [data-reveal] em style.css,
+    // compartilhado com o dossiê) -- sem isso todos os cards apareceriam
+    // de uma vez só, menos vivo que um pra cada.
+    card.style.setProperty("--reveal-delay", `${indice * 0.08}s`);
     card.innerHTML = `
     <div class="app-icon" data-categoria="${app.categoria}" aria-hidden="true">${app.glifo}</div>
     <div class="app-body">
@@ -101,13 +106,18 @@ function render() {
     const lista = document.getElementById("catalogo");
     if (!lista)
         return;
-    for (const app of CATALOGO) {
-        lista.appendChild(criarCard(app));
-    }
+    CATALOGO.forEach((app, indice) => {
+        lista.appendChild(criarCard(app, indice));
+    });
     const contador = document.getElementById("catalogo-contagem");
     if (contador) {
         contador.textContent = `${CATALOGO.length} app${CATALOGO.length === 1 ? "" : "s"} publicado${CATALOGO.length === 1 ? "" : "s"}`;
     }
+    // Só agora os cards existem de verdade no DOM -- chamar isso antes
+    // (ex.: direto no DOMContentLoaded de interactions.ts) não acharia
+    // nenhum ".app-card" pra observar/animar (ver interactions.ts).
+    initScrollReveal();
+    initGlowSurfaces();
 }
 document.addEventListener("DOMContentLoaded", render);
 //# sourceMappingURL=loja.js.map

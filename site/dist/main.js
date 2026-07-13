@@ -99,6 +99,10 @@ function main() {
     if (bootContainer) {
         void new BootSequence(bootContainer).run();
     }
+    // Conteúdo do dossiê já está todo no HTML (nada dinâmico aqui, ao
+    // contrário da loja) -- pode chamar direto, ver interactions.ts.
+    initScrollReveal();
+    initGlowSurfaces();
 }
 document.addEventListener("DOMContentLoaded", main);
 //# sourceMappingURL=main.js.map

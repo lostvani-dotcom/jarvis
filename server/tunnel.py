@@ -100,16 +100,17 @@ def iniciar_tunel(porta: int, timeout: float = 25.0) -> str:
         kwargs = {}
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
-        _processo = subprocess.Popen(
+        processo_local = subprocess.Popen(
             [caminho, "tunnel", "--url", f"http://localhost:{porta}"],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, **kwargs,
         )
+        _processo = processo_local
 
         padrao_url = re.compile(r"https://[a-zA-Z0-9\-]+\.trycloudflare\.com")
         evento_pronto = threading.Event()
 
         def _ler_saida():
-            for linha in _processo.stdout:
+            for linha in processo_local.stdout:
                 log.info("[cloudflared] %s", linha.strip())
                 if _url_atual["url"] is None:
                     m = padrao_url.search(linha)
@@ -120,6 +121,19 @@ def iniciar_tunel(porta: int, timeout: float = 25.0) -> str:
         threading.Thread(target=_ler_saida, daemon=True).start()
 
     if not evento_pronto.wait(timeout=timeout):
+        # Sem isso, o processo do cloudflared que acabou de ser criado
+        # ficava ÓRFÃO: a próxima chamada (usuário tentando de novo)
+        # via `_url_atual["url"]` None e disparava OUTRO `Popen`,
+        # perdendo a referência global (`_processo`) pro primeiro
+        # processo -- que continuava rodando pra sempre, sem
+        # `parar_tunel()` nunca conseguir encerrá-lo. Só derruba o
+        # processo se ainda for o mesmo desta chamada (uma chamada
+        # concorrente pode já ter substituído `_processo` por um novo).
+        with _lock:
+            if _processo is processo_local:
+                _processo = None
+            _url_atual["url"] = None
+        processo_local.terminate()
         raise RuntimeError(
             "Túnel não respondeu a tempo -- veja logs/jarvis.log (categoria 'server') pra detalhes."
         )

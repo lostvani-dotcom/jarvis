@@ -33,7 +33,12 @@ _DESLIGAR_RE = re.compile(
     re.IGNORECASE,
 )
 _CONSULTAR_RE = re.compile(
-    r"\bo\s+que\s+(?:est[aá]\s+acontecendo|voc[eê]\s+(?:est[aá]\s+)?v[eê]|t[aá]\s+rolando|t[aá]\s+acontecendo)\b.*\btela\b",
+    # "voc[eê] v[eê]" só cobria a forma "vê" (3ª pessoa) -- o próprio
+    # exemplo documentado no topo do arquivo, "o que você está vendo
+    # agora", usa o gerúndio "vendo" e nem menciona "tela", então o
+    # ".*\btela\b" obrigatório no final também tinha que virar opcional.
+    r"\bo\s+que\s+(?:est[aá]\s+acontecendo|voc[eê]\s+(?:est[aá]\s+)?(?:v[eê]|vendo)|t[aá]\s+rolando|t[aá]\s+acontecendo)\b"
+    r"(?:.*\btela\b)?",
     re.IGNORECASE,
 )
 
