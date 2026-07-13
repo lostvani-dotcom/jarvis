@@ -1,0 +1,91 @@
+/**
+ * site/src/loja.ts
+ * ===================
+ * Catálogo da loja -- cada app criado vira um item nesta lista e a
+ * página se desenha sozinha a partir dela (ver `render()`). Adicionar
+ * um novo app no futuro é só adicionar um objeto em `CATALOGO`, nada
+ * de mexer no HTML.
+ */
+
+interface AppEntry {
+  id: string;
+  nome: string;
+  categoria: string;
+  resumo: string;
+  descricao: string;
+  versaoNome: string;
+  versaoCodigo: number;
+  tamanhoMb: number;
+  requisito: string;
+  arquivo: string;
+  /** Letra/glifo mostrado no "ícone" desenhado em CSS (ver .app-icon). */
+  glifo: string;
+  atualizadoEm: string;
+}
+
+const CATALOGO: readonly AppEntry[] = [
+  {
+    id: "ultron-companion",
+    nome: "Ultron Companion",
+    categoria: "Produtividade",
+    resumo: "O Ultron no seu bolso -- controla o celular e conversa com o núcleo do PC pela Wi-Fi.",
+    descricao:
+      "Chat com o Ultron direto do celular, encaminha notificações (Instagram/WhatsApp/Telegram/Signal/" +
+      "Discord) e responde comandos do aparelho (bateria, lanterna, volume, alarme, localização e mais) " +
+      "mesmo com o app fechado. Boa parte das funções roda 100% offline no próprio celular -- conversa " +
+      "aberta e memória completa pedem o Ultron do PC na mesma rede (ou, se já sincronizado uma vez, " +
+      "conversa direto com a nuvem sem precisar do PC ligado).",
+    versaoNome: "1.5",
+    versaoCodigo: 6,
+    tamanhoMb: 5.4,
+    requisito: "Android 8.0 ou superior",
+    arquivo: "apps/ultron-companion.apk",
+    glifo: "U",
+    atualizadoEm: "13/07/2026",
+  },
+];
+
+function formatarTamanho(mb: number): string {
+  return mb.toFixed(1).replace(".", ",") + " MB";
+}
+
+function criarCard(app: AppEntry): HTMLElement {
+  const card = document.createElement("article");
+  card.className = "app-card";
+  card.id = app.id;
+
+  card.innerHTML = `
+    <div class="app-icon" aria-hidden="true">${app.glifo}</div>
+    <div class="app-body">
+      <div class="app-heading">
+        <h2>${app.nome}</h2>
+        <span class="app-category">${app.categoria}</span>
+      </div>
+      <p class="app-resumo">${app.resumo}</p>
+      <dl class="app-meta">
+        <div><dt>Versão</dt><dd>${app.versaoNome} <span class="dim">(build ${app.versaoCodigo})</span></dd></div>
+        <div><dt>Tamanho</dt><dd>${formatarTamanho(app.tamanhoMb)}</dd></div>
+        <div><dt>Requer</dt><dd>${app.requisito}</dd></div>
+        <div><dt>Atualizado</dt><dd>${app.atualizadoEm}</dd></div>
+      </dl>
+      <p class="app-descricao">${app.descricao}</p>
+      <a class="btn-instalar" href="${app.arquivo}" download>Baixar APK</a>
+    </div>
+  `;
+  return card;
+}
+
+function render(): void {
+  const lista = document.getElementById("catalogo");
+  if (!lista) return;
+  for (const app of CATALOGO) {
+    lista.appendChild(criarCard(app));
+  }
+
+  const contador = document.getElementById("catalogo-contagem");
+  if (contador) {
+    contador.textContent = `${CATALOGO.length} app${CATALOGO.length === 1 ? "" : "s"} publicado${CATALOGO.length === 1 ? "" : "s"}`;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", render);

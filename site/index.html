@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ULTRON — dossiê do núcleo cognitivo</title>
+<meta name="description" content="Como o assistente pessoal Ultron funciona por dentro: conversa, voz, visão, automação, RedCore e o app companion.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <a href="loja.html">Loja</a>
+</nav>
+<button id="theme-toggle" class="theme-toggle" type="button" aria-label="Alternar entre tema claro e escuro" aria-pressed="false">
+  <span class="theme-toggle-dot" aria-hidden="true"></span>
+</button>
+
+<div class="hero">
+  <div class="boot" id="boot" aria-hidden="true">
+    <noscript>
+      <div class="boot-line">&gt; inicializando <b>núcleo cognitivo</b>...</div>
+      <div class="boot-line">&gt; memória local [OK] · plugins [42 carregados]</div>
+      <div class="boot-line">&gt; voz [OK] · visão [OK] · automação [OK]</div>
+      <div class="boot-line">&gt; nenhuma API externa obrigatória [confirmado]</div>
+      <div class="boot-line">&gt; operador reconhecido: <b>bem-vindo de volta</b></div>
+      <div class="boot-line">&gt; cognitive core initialized</div>
+    </noscript>
+  </div>
+  <h1 class="wordmark">ULTR<span>O</span>N</h1>
+  <p class="tagline">assistente pessoal · roda no seu PC, não na nuvem de alguém</p>
+  <p class="thesis">Um núcleo que conversa, ouve, vê e age no seu computador — e continua de pé mesmo sem internet, sem chave de API e sem mandar seus dados pra lugar nenhum.</p>
+</div>
+
+<main class="wrap">
+
+  <section class="manifesto">
+    <div class="prose">
+      <p class="eyebrow" style="text-align:center">Premissa</p>
+      <p>O Ultron nasceu como uma reescrita do clássico projeto pessoal de assistente de IA — só que com o núcleo (conversa, memória, plugins, base de conhecimento) rodando inteiramente em Python padrão e SQLite. Nada de obrigatório na nuvem. IA externa, voz, visão computacional e automação avançada existem como camadas <em>opcionais</em>, ativadas uma a uma, cada uma degradando com elegância quando a dependência não está instalada.</p>
+    </div>
+  </section>
+
+  <section id="sistemas">
+    <p class="eyebrow">Subsistemas</p>
+    <h2>Doze módulos, um só operador</h2>
+    <p class="prose">Cada capacidade vive no seu próprio módulo, ligável e desligável em <code style="font-family:var(--mono)">config.json</code>. O que está listado abaixo é o que roda hoje — não uma promessa de roadmap.</p>
+
+    <div class="grid">
+      <div class="card">
+        <p class="tag">conversa</p>
+        <h3>Motor de diálogo</h3>
+        <p>Memória permanente por usuário, base de conhecimento curada, e um motor de conversa natural que funciona mesmo sem nenhum provedor de IA configurado.</p>
+      </div>
+      <div class="card">
+        <p class="tag">voz</p>
+        <h3>Fala e escuta</h3>
+        <p>Reconhecimento offline (Vosk/faster-whisper), síntese local, palavra de ativação e um modo de conversa contínua que não exige repetir o nome a cada frase.</p>
+      </div>
+      <div class="card">
+        <p class="tag">visão</p>
+        <h3>Câmera e tela</h3>
+        <p>Detecção e reconhecimento facial local (OpenCV/LBPH), OCR, detecção de objetos e gestos — e um modo de acompanhar a tela, desligado por padrão.</p>
+      </div>
+      <div class="card">
+        <p class="tag">automação</p>
+        <h3>Controle do PC</h3>
+        <p>Abrir/fechar programas, macros, lembretes, hábitos observados, e uma rotina de auto-melhoria que revisa o próprio código do assistente.</p>
+      </div>
+      <div class="card">
+        <p class="tag">redcore</p>
+        <h3>Navegador próprio</h3>
+        <p>Um Chromium embutido que só o Ultron controla — abas, favoritos, downloads, bloqueio de anúncios e um histórico que só existe porque você pediu.</p>
+      </div>
+      <div class="card">
+        <p class="tag">companion</p>
+        <h3>App Android</h3>
+        <p>Descoberta automática na Wi-Fi, comandos do aparelho funcionando com o PC desligado, e conversa direta com a nuvem quando não há rede nenhuma até o PC.</p>
+      </div>
+      <div class="card">
+        <p class="tag">dispositivos</p>
+        <h3>Periferia</h3>
+        <p>BLE, serial, MQTT, SSH e ADB — o núcleo também fala com o que está pendurado na sua rede, não só com o teclado.</p>
+      </div>
+      <div class="card">
+        <p class="tag">segurança</p>
+        <h3>Guarda-costas</h3>
+        <p>Criptografia real de segredos, backup automático, e confirmação explícita antes de qualquer ação destrutiva ou irreversível.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="spotlight">
+      <div>
+        <p class="eyebrow">A voz</p>
+        <h2>Grave de propósito, não por acaso</h2>
+        <p>A voz robótica do Ultron não é um efeito de biblioteca nem a imitação de ninguém — é a mesma voz do Windows, processada por uma cadeia própria de áudio pensada pra soar como uma IA grande, fria e no controle.</p>
+      </div>
+      <div>
+        <div class="chain">
+          <div class="chain-step"><span class="n">01</span><span class="label">coro / duplicação</span><span class="val">±10 cents</span></div>
+          <div class="chain-step"><span class="n">02</span><span class="label">reforço de graves</span><span class="val">passa-baixa larga</span></div>
+          <div class="chain-step"><span class="n">03</span><span class="label">suavização de agudos</span><span class="val">passa-baixa estreita</span></div>
+          <div class="chain-step"><span class="n">04</span><span class="label">sheen metálico</span><span class="val">ring-mod 48Hz</span></div>
+          <div class="chain-step"><span class="n">05</span><span class="label">saturação</span><span class="val">soft-clip tanh</span></div>
+          <div class="chain-step"><span class="n">06</span><span class="label">reverb</span><span class="val">5 taps, cauda longa</span></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><b>−9</b><span>pitch padrão</span></div>
+          <div class="stat"><b>0.7</b><span>intensidade</span></div>
+          <div class="stat"><b>SAPI5</b><span>motor, sem clonagem</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Filosofia de dados</p>
+    <h2>Ele vê o que você deixa ver</h2>
+    <p class="prose">O RedCore é o exemplo mais direto disso: um navegador de verdade que registra o que passa nele — inclusive e-mails abertos — porque foi um pedido explícito, não um comportamento escondido. A mesma régua vale pro resto do sistema.</p>
+    <ul class="rule-list">
+      <li><span><b>Rede local, sempre.</b> O servidor do celular escuta na Wi-Fi de casa — nunca mexe em roteador, nunca sai pra internet sozinho.</span></li>
+      <li><span><b>Criptografado em repouso.</b> Histórico do navegador e segredos usam cifra real (Fernet/AES) com a chave guardada fora do controle de versão.</span></li>
+      <li><span><b>Opt-in pro que é sensível.</b> Acompanhar a tela e reconhecimento facial vêm <em>desligados</em> por padrão — é você quem liga.</span></li>
+      <li><span><b>Apagável com uma frase.</b> "Apaga o histórico do RedCore" apaga de verdade, na hora, sem confirmação escondida atrás de um menu.</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <span><span class="pulse">●</span> núcleo local — sem telemetria, sem conta, sem nuvem obrigatória</span>
+  <span>dossiê gerado pra explicar o sistema, não pra operá-lo</span>
+</footer>
+
+<script src="dist/theme.js" defer></script>
+<script src="dist/main.js" defer></script>
+</body>
+</html>

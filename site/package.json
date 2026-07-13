@@ -1,0 +1,12 @@
+{
+  "name": "ultron-site",
+  "private": true,
+  "description": "Site estático explicando como o assistente pessoal Ultron funciona -- HTML + CSS + TypeScript, sem framework.",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

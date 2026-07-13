@@ -37,6 +37,9 @@ class NotifyListenerService : NotificationListenerService() {
         "com.whatsapp",
         "com.facebook.orca",
         "org.telegram.messenger",
+        "org.thoughtcrime.securesms", // Signal
+        "com.discord",
+        "com.google.android.apps.messaging", // Mensagens (SMS/RCS) do Google
     )
 
     private val pollingHandler = Handler(Looper.getMainLooper())

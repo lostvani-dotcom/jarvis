@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loja Ultron — apps pra baixar</title>
+<meta name="description" content="Apps criados no ecossistema Ultron, prontos pra baixar e instalar.">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="loja.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <a href="index.html">Dossiê</a>
+  <a href="loja.html" aria-current="page">Loja</a>
+</nav>
+<button id="theme-toggle" class="theme-toggle" type="button" aria-label="Alternar entre tema claro e escuro" aria-pressed="false">
+  <span class="theme-toggle-dot" aria-hidden="true"></span>
+</button>
+
+<header class="loja-header">
+  <p class="eyebrow" style="text-align:center">Distribuição</p>
+  <h1 class="loja-title">LOJA <span>ULTRON</span></h1>
+  <p class="thesis">Todo app nascido nesse ecossistema, num só lugar pra baixar -- sem loja de terceiros, sem conta, sem rastreamento. Direto do repositório pro seu aparelho.</p>
+  <p class="loja-contagem" id="catalogo-contagem" aria-live="polite"></p>
+</header>
+
+<main class="wrap">
+  <div class="app-list" id="catalogo"></div>
+
+  <div class="loja-nota">
+    <p class="eyebrow">Antes de instalar</p>
+    <p>O Android vai pedir permissão pra "instalar apps de fontes desconhecidas" na primeira vez -- normal para qualquer APK que não veio da Play Store, inclusive os seus próprios. Depois de instalado, o app se autoatualiza sozinho sempre que uma versão nova for publicada aqui.</p>
+  </div>
+</main>
+
+<footer class="wrap">
+  <span><span class="pulse">●</span> arquivos servidos direto deste repositório</span>
+  <span>sem loja de terceiros, sem conta, sem rastreamento</span>
+</footer>
+
+<script src="dist/theme.js" defer></script>
+<script src="dist/loja.js" defer></script>
+</body>
+</html>

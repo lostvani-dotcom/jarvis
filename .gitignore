@@ -50,3 +50,9 @@ app_android/.gradle/
 app_android/**/build/
 app_android/*.iml
 app_android/.idea/
+
+# site/ (dossiê em TypeScript) -- dependências reinstaláveis via
+# `npm install`; dist/main.js (a saída compilada) FICA versionado de
+# propósito, pra abrir index.html funcionar sem precisar compilar nada.
+site/node_modules/
+

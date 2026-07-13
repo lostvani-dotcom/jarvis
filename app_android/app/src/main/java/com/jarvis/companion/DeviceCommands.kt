@@ -50,6 +50,20 @@ object DeviceCommands {
         "tiktok" to "com.zhiliaoapp.musically",
         "twitter" to "com.twitter.android",
         "x" to "com.twitter.android",
+        "discord" to "com.discord",
+        "signal" to "org.thoughtcrime.securesms",
+        "netflix" to "com.netflix.mediaclient",
+        "maps" to "com.google.android.apps.maps",
+        "waze" to "com.waze",
+        "mensagens" to "com.google.android.apps.messaging",
+        "play store" to "com.android.vending",
+        "uber" to "com.ubercab",
+        // "câmera"/"configurações" ficam de fora de propósito -- o
+        // pacote da Câmera varia MUITO por fabricante (Samsung, Google,
+        // Xiaomi, OnePlus... cada um usa um diferente), então um alias
+        // fixo erraria na maioria dos aparelhos; a busca por rótulo
+        // (fallback abaixo, "app.label contém X") já acha o app certo
+        // de qualquer forma, sem precisar de alias pra isso.
     )
 
     fun executar(context: Context, tipo: String, params: JSONObject): JSONObject = try {

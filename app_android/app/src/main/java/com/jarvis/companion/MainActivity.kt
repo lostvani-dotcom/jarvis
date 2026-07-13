@@ -343,7 +343,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Antes de disparar a instalação, confere se o Android já deixa
+     * ESTE app instalar pacotes de fora da Play Store (API 26+, exigido
+     * desde o Android 8) -- sem essa permissão especial, o
+     * `ACTION_VIEW` do APK abre uma tela de bloqueio confusa em vez de
+     * instalar. Preferimos avisar e guiar pra tela certa (mesmo padrão
+     * já usado pras outras permissões especiais deste app -- "Não
+     * Perturbe", "Acesso ao uso") a deixar o usuário se perguntando por
+     * que a atualização "não fez nada". */
     private fun instalarApk(arquivo: File) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+            adicionarLinha(
+                "Ultron: preciso da permissão \"Instalar apps desconhecidos\" pra concluir a " +
+                    "atualização sozinho -- abrindo a tela pra você autorizar.",
+            )
+            try {
+                val i = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
+                startActivity(i)
+            } catch (e: Exception) {
+                // melhor-esforço -- se a tela específica não existir neste
+                // fabricante, o próprio ACTION_VIEW abaixo ainda tenta e o
+                // Android mostra o caminho dele pra essa permissão.
+            }
+        }
         val uri: Uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", arquivo)
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
