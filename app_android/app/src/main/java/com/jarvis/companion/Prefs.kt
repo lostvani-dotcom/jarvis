@@ -81,4 +81,20 @@ class Prefs(context: Context) {
     var lockSetupPerguntado: Boolean
         get() = sp.getBoolean("lock_setup_perguntado", false)
         set(value) = sp.edit().putBoolean("lock_setup_perguntado", value).apply()
+
+    // ---- widget de tela inicial (ver UltronWidgetProvider.kt) ----
+    // Boolean? (tri-estado: nunca checado / online / offline) -- SharedPreferences
+    // não tem getBoolean nullable de verdade, então -1/0/1 representa
+    // desconhecido/false/true.
+    var widgetUltimoStatusOnline: Boolean?
+        get() = when (sp.getInt("widget_status_online", -1)) {
+            1 -> true
+            0 -> false
+            else -> null
+        }
+        set(value) = sp.edit().putInt("widget_status_online", when (value) {
+            true -> 1
+            false -> 0
+            null -> -1
+        }).apply()
 }

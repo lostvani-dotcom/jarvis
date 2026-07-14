@@ -36,14 +36,17 @@ const CATALOGO: readonly AppEntry[] = [
       "Signal/Discord) e responde comandos do aparelho (bateria, lanterna, volume, alarme, " +
       "localização e mais) mesmo com o app fechado. Grava amostra de voz pelo microfone do " +
       "celular (pra clonagem de voz) e identifica rostos cadastrados usando a câmera do celular " +
-      "-- os dois processados pelo Ultron do PC. Agora também: tela do PC ao vivo (\"Ver a tela " +
-      "do PC\"), atalho de hardware (3 toques no volume abrem o app já ouvindo, via " +
-      "Acessibilidade) e um painel de estatísticas de uso. Boa parte das funções roda 100% " +
-      "offline no próprio celular. Modo nuvem (conversar sem o PC ligado) com memória persistente " +
-      "e sincronização automática em segundo plano -- conversa aberta com acesso à memória/base " +
-      "de conhecimento completa continua exigindo o Ultron do PC na mesma rede.",
-    versaoNome: "1.9.1",
-    versaoCodigo: 11,
+      "-- os dois processados pelo Ultron do PC. Tela do PC ao vivo (\"Ver a tela do PC\"), " +
+      "atalho de hardware (3 toques no volume abrem o app já ouvindo, via Acessibilidade) e um " +
+      "painel de estatísticas de uso. Agora também: um widget pra tela inicial (status + " +
+      "microfone de um toque), \"Compartilhar\" de qualquer app manda o texto/link direto pro " +
+      "Ultron, e as conversas salvas podem ser exportadas/compartilhadas como texto. Boa parte " +
+      "das funções roda 100% offline no próprio celular. Modo nuvem (conversar sem o PC ligado) " +
+      "com memória persistente e sincronização automática em segundo plano -- conversa aberta " +
+      "com acesso à memória/base de conhecimento completa continua exigindo o Ultron do PC na " +
+      "mesma rede.",
+    versaoNome: "2.0",
+    versaoCodigo: 12,
     tamanhoMb: 5.4,
     requisito: "Android 8.0 ou superior",
     arquivo: "apps/ultron-companion.apk",
@@ -72,16 +75,16 @@ const CATALOGO: readonly AppEntry[] = [
     id: "redcore-mobile",
     nome: "RedCore",
     categoria: "Navegador",
-    resumo: "O navegador do Ultron, agora no celular -- abas, busca embutida, favoritos sincronizados com o PC, bloqueio de anúncios.",
+    resumo: "O navegador do Ultron, agora no celular -- abas, busca embutida, modo leitura, favoritos sincronizados com o PC, bloqueio de anúncios.",
     descricao:
       "Versão leve do RedCore do PC (gui/redcore.py): abas de verdade, barra de endereço que também " +
       "pesquisa no Google, voltar/avançar/recarregar, bloqueio de anúncios/rastreadores (menu ⋮, " +
-      "mesma lista de domínios do desktop) e favoritos sincronizados com o RedCore do PC nos dois " +
-      "sentidos. Também sincroniza o histórico de navegação com o Ultron do PC, mas só se você " +
-      "ligar essa opção nas configurações -- desligado por padrão. Aba privada continua exclusiva " +
-      "do RedCore do PC por enquanto.",
-    versaoNome: "1.2",
-    versaoCodigo: 3,
+      "mesma lista de domínios do desktop), modo leitura (limpa o clutter de artigos) e favoritos " +
+      "sincronizados com o RedCore do PC nos dois sentidos. Também sincroniza o histórico de " +
+      "navegação com o Ultron do PC, mas só se você ligar essa opção nas configurações -- desligado " +
+      "por padrão. Aba privada continua exclusiva do RedCore do PC por enquanto.",
+    versaoNome: "1.3",
+    versaoCodigo: 4,
     tamanhoMb: 5.4,
     requisito: "Android 8.0 ou superior",
     arquivo: "apps/redcore-mobile.apk",

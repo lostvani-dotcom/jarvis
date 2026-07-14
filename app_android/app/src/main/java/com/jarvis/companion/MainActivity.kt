@@ -84,7 +84,7 @@ class MainActivity : AppCompatActivity() {
 
         sessionsAdapter = SessionsAdapter(
             aoTocar = { sessao -> abrirSessao(sessao) },
-            aoSegurar = { sessao -> confirmarExclusaoDeSessao(sessao) },
+            aoSegurar = { sessao -> mostrarAcoesDeSessao(sessao) },
         )
         binding.sessionsRecycler.layoutManager = LinearLayoutManager(this)
         binding.sessionsRecycler.adapter = sessionsAdapter
@@ -154,7 +154,10 @@ class MainActivity : AppCompatActivity() {
         // Sem bloqueio ativo, pode escutar assim que a tela abrir; COM
         // bloqueio, só depois de autenticar (ver onStart) -- nunca antes,
         // senão o atalho de hardware furaria o bloqueio do app.
-        if (!prefs.appLockAtivo) processarAutoEscuta()
+        if (!prefs.appLockAtivo) {
+            processarAutoEscuta()
+            processarCompartilhamento()
+        }
     }
 
     /** Ver EXTRA_AUTO_INICIAR_ESCUTA -- chamado só uma vez por Intent
@@ -164,6 +167,32 @@ class MainActivity : AppCompatActivity() {
         if (!intent.getBooleanExtra(EXTRA_AUTO_INICIAR_ESCUTA, false)) return
         intent.removeExtra(EXTRA_AUTO_INICIAR_ESCUTA)
         binding.root.post { iniciarEscuta() }
+    }
+
+    /** "Compartilhar" de qualquer app (navegador, redes sociais) chega
+     * aqui como ACTION_SEND (ver AndroidManifest.xml) -- só PREENCHE o
+     * campo de mensagem com o texto/link compartilhado, nunca manda
+     * sozinho: o usuário decide se quer perguntar algo sobre aquilo,
+     * editar antes, ou só ignorar. Limpo do Intent depois de usar, pelo
+     * mesmo motivo de processarAutoEscuta (não repetir numa rotação). */
+    private fun processarCompartilhamento() {
+        if (intent?.action != Intent.ACTION_SEND) return
+        val texto = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim() ?: return
+        intent.removeExtra(Intent.EXTRA_TEXT)
+        if (texto.isEmpty()) return
+        binding.messageInput.setText(texto)
+        binding.messageInput.setSelection(texto.length)
+        binding.messageInput.requestFocus()
+    }
+
+    /** singleTop (ver AndroidManifest.xml) faz um NOVO compartilhamento
+     * com o app já aberto chegar aqui em vez de criar outra instância
+     * da Activity -- sem isso, MainActivity.intent continuaria sendo o
+     * da abertura original, e um compartilhamento nunca apareceria. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (!prefs.appLockAtivo || desbloqueado) processarCompartilhamento()
     }
 
     override fun onStart() {
@@ -179,6 +208,7 @@ class MainActivity : AppCompatActivity() {
                     desbloqueado = true
                     binding.root.visibility = View.VISIBLE
                     processarAutoEscuta()
+                    processarCompartilhamento()
                 },
                 onFalha = {
                     Toast.makeText(this, "Acesso negado.", Toast.LENGTH_SHORT).show()
@@ -347,6 +377,11 @@ class MainActivity : AppCompatActivity() {
         thread {
             try {
                 val info = JarvisClient.getServerVersion(prefs.baseUrl)
+                // Chegou até aqui sem exceção = PC alcançável agora --
+                // empurra pro widget de tela inicial na hora (ver
+                // UltronWidgetProvider.kt), sem esperar o ciclo automático
+                // dele (só a cada 30 min).
+                UltronWidgetProvider.notificarStatus(applicationContext, true)
                 val versaoServidor = info.optInt("versionCode", 0)
                 val nomeServidor = info.optString("versionName", "?")
                 val versaoAtual = packageManager.getPackageInfo(packageName, 0).let {
@@ -364,6 +399,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 // melhor-esforço -- sem servidor alcançável, sem checagem de versão
+                UltronWidgetProvider.notificarStatus(applicationContext, false)
             }
         }
     }
@@ -617,6 +653,44 @@ class MainActivity : AppCompatActivity() {
         chatAdapter.substituirTudo(emptyList())
         binding.drawerLayout.closeDrawer(GravityCompat.START)
         adicionarMensagem("Nova conversa. Pode mandar.", Remetente.SISTEMA)
+    }
+
+    /** Toque longo numa sessão salva -- abrir já é o toque simples
+     * (ver sessionsAdapter acima), então aqui só as ações "destrutivas
+     * ou raras": compartilhar o transcript, ou excluir. */
+    private fun mostrarAcoesDeSessao(sessao: ChatSession) {
+        AlertDialog.Builder(this)
+            .setTitle(sessao.titulo.ifBlank { "Conversa" })
+            .setItems(arrayOf("Compartilhar", "Excluir")) { _, which ->
+                when (which) {
+                    0 -> compartilharSessao(sessao)
+                    1 -> confirmarExclusaoDeSessao(sessao)
+                }
+            }
+            .show()
+    }
+
+    /** Exporta a conversa como texto puro (via o seletor de
+     * compartilhamento do Android -- salvar como arquivo, mandar por
+     * mensagem, colar em qualquer app) -- só mensagens de verdade
+     * (usuário/Ultron), sem avisos de sistema/erro no meio. */
+    private fun compartilharSessao(sessao: ChatSession) {
+        val transcript = sessao.mensagens
+            .filter { it.remetente == Remetente.USUARIO || it.remetente == Remetente.ULTRON }
+            .joinToString("\n\n") { m ->
+                val quem = if (m.remetente == Remetente.USUARIO) "Você" else "Ultron"
+                "$quem: ${m.texto}"
+            }
+        if (transcript.isBlank()) {
+            Toast.makeText(this, "Essa conversa não tem nada pra exportar.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, sessao.titulo.ifBlank { "Conversa com o Ultron" })
+            putExtra(Intent.EXTRA_TEXT, transcript)
+        }
+        startActivity(Intent.createChooser(intent, "Compartilhar conversa"))
     }
 
     private fun confirmarExclusaoDeSessao(sessao: ChatSession) {

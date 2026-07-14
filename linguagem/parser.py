@@ -63,8 +63,18 @@ class Parser:
     # ---------- programa ----------
     def parse(self):
         instrucoes = []
-        while not self._fim():
-            instrucoes.append(self._declaracao())
+        try:
+            while not self._fim():
+                instrucoes.append(self._declaracao())
+        except RecursionError:
+            # Cada nível de aninhamento (parênteses, blocos, chamadas) consome
+            # vários frames Python nesse parser recursivo descendente -- um
+            # programa com aninhamento profundo demais (ex.: muitos "((((...")
+            # estoura o limite de recursão do Python antes mesmo de chegar a
+            # rodar; sem isso, viraria RecursionError cru vazando de
+            # executar() em vez de um ErroSintaxe claro (já capturado por
+            # quem chama, ver linguagem/__init__.py).
+            raise ErroSintaxe("Programa excedeu a profundidade máxima de aninhamento (muitos parênteses/blocos/chamadas aninhados).")
         return instrucoes
 
     def _declaracao(self):

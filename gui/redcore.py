@@ -42,7 +42,8 @@ Melhorias (pedido do usuário, "melhora o navegador"):
     uma janela simples de progresso/lista.
   - **Busca na página** (Ctrl+F) e **atalhos de teclado** (Ctrl+T nova
     aba, Ctrl+W fecha aba, Ctrl+L foca endereço, Ctrl+R/F5 recarrega,
-    Ctrl+D favorita, Ctrl+Shift+N aba privada, Esc fecha a busca).
+    Ctrl+D favorita, Ctrl+Shift+N aba privada, Ctrl+Shift+R modo
+    leitura, Esc fecha a busca).
   - **Aba privada/anônima** (🕵): usa um `QWebEngineProfile` PRÓPRIO,
     fora do registro (off-the-record -- cookies/cache só em memória,
     somem ao fechar a aba) e nunca grava no histórico do RedCore.
@@ -53,6 +54,13 @@ Melhorias (pedido do usuário, "melhora o navegador"):
     telemetria/anúncios sem depender de arquivo externo. Tem um botão
     pra desligar (persiste em config.json -> redcore.bloqueio_anuncios)
     caso algum site quebre por causa disso.
+  - **Modo leitura** (📖, `_JS_MODO_LEITURA`): injeta um `<style>` que
+    esconde navegação/barras laterais/anúncios/comentários por
+    heurística (seletores comuns, não é um algoritmo de extração de
+    conteúdo tipo Readability) e recentraliza o texto numa coluna
+    legível. Por aba, não persiste entre páginas (mesmo espírito do
+    modo leitura de qualquer navegador de verdade: liga de novo se
+    quiser em cada artigo).
 """
 
 import os
@@ -77,6 +85,40 @@ _MIN_CONTEUDO_CHARS = 20  # ignora capturas triviais (tela em branco/carregando)
 _DOWNLOADS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "redcore_downloads"
 )
+
+# Heurística simples (não um extrator de conteúdo tipo Readability):
+# esconde os elementos de clutter mais comuns por seletor de classe/id/tag
+# e força o corpo numa coluna legível. `id` fixo no <style> pra dar pra
+# remover de novo (alternar) sem precisar recarregar a página.
+_JS_MODO_LEITURA = """
+(function() {
+  var id = 'ultron-modo-leitura';
+  var existente = document.getElementById(id);
+  if (existente) { existente.remove(); return false; }
+  var style = document.createElement('style');
+  style.id = id;
+  style.textContent = `
+    nav, header, footer, aside, iframe,
+    [class*="sidebar" i], [class*="cookie" i], [class*="popup" i],
+    [class*="modal" i], [class*="banner" i], [class*="newsletter" i],
+    [class*="subscribe" i], [class*="related" i], [class*="recommend" i],
+    [class*="comment" i], [class*="share" i], [class*="social" i],
+    [class*="advert" i], [class*=" ad-" i], [class^="ad-" i],
+    [id*="sidebar" i], [id*="comment" i], [role="banner"],
+    [role="navigation"], [role="complementary"]
+      { display: none !important; }
+    html, body {
+      max-width: 720px !important; margin: 0 auto !important; padding: 24px !important;
+      font-family: Georgia, "Times New Roman", serif !important; font-size: 19px !important;
+      line-height: 1.7 !important; background: #f7f2e9 !important; color: #222 !important;
+    }
+    body * { max-width: 100% !important; float: none !important; }
+    img, video, figure { height: auto !important; }
+  `;
+  document.head.appendChild(style);
+  return true;
+})();
+"""
 
 # Lista curada (não é EasyList completa) de domínios de publicidade e
 # rastreamento bem conhecidos -- suficiente pra cortar o grosso dos
@@ -264,6 +306,12 @@ class RedCoreBrowser(QMainWindow):
         btn_bloqueio.toggled.connect(self._alternar_bloqueio)
         barra.addWidget(btn_bloqueio)
 
+        self.btn_leitura = QPushButton("📖")
+        self.btn_leitura.setToolTip("Modo leitura -- limpa o clutter da página (por aba, some ao navegar)")
+        self.btn_leitura.setCheckable(True)
+        self.btn_leitura.toggled.connect(self._alternar_modo_leitura)
+        barra.addWidget(self.btn_leitura)
+
         btn_limpar = QPushButton("🗑 Limpar histórico")
         btn_limpar.clicked.connect(self._limpar_historico)
         barra.addWidget(btn_limpar)
@@ -350,6 +398,7 @@ class RedCoreBrowser(QMainWindow):
         )
         QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(self._alternar_busca)
         QShortcut(QKeySequence("Ctrl+D"), self).activated.connect(self._alternar_favorito)
+        QShortcut(QKeySequence("Ctrl+Shift+R"), self).activated.connect(self.btn_leitura.toggle)
         QShortcut(QKeySequence("Escape"), self).activated.connect(self._fechar_busca)
 
     def _fechar_aba_atual(self):
@@ -373,6 +422,7 @@ class RedCoreBrowser(QMainWindow):
         view._privada = privada       # nunca grava no histórico do RedCore, ver _url_mudou/_pagina_carregou
         view._visita_id = -1          # id da linha do histórico da visita atual (redcore_historico)
         view._ultimo_conteudo = None  # último texto capturado -- evita logar a mesma coisa de novo
+        view._modo_leitura = False    # por aba -- ver _alternar_modo_leitura
         view.load(QUrl(url))
         indice = self.tabs.addTab(view, "🕵 Nova aba privada" if privada else "Nova aba")
         self.tabs.setCurrentIndex(indice)
@@ -406,6 +456,12 @@ class RedCoreBrowser(QMainWindow):
         aba = self._aba_atual()
         if aba is not None:
             self.barra_endereco.setText(aba.url().toString())
+        # blockSignals evita reentrar em _alternar_modo_leitura (que agiria
+        # na aba ERRADA -- ele sempre opera na aba "atual" no momento do
+        # toggle, e aqui só queremos REFLETIR o estado, não mudar nada).
+        self.btn_leitura.blockSignals(True)
+        self.btn_leitura.setChecked(bool(aba is not None and getattr(aba, "_modo_leitura", False)))
+        self.btn_leitura.blockSignals(False)
         self._atualizar_estado_favorito()
 
     def _titulo_mudou(self, view: QWebEngineView, titulo: str):
@@ -418,9 +474,16 @@ class RedCoreBrowser(QMainWindow):
 
     def _url_mudou(self, view: QWebEngineView, qurl: QUrl):
         url = qurl.toString()
+        # Navegação nova sempre desliga o modo leitura desta aba (mesmo
+        # comportamento de qualquer navegador de verdade -- não faz
+        # sentido persistir o CSS injetado de uma página na próxima).
+        view._modo_leitura = False
         if view is self._aba_atual():
             self.barra_endereco.setText(url)
             self._atualizar_estado_favorito()
+            self.btn_leitura.blockSignals(True)
+            self.btn_leitura.setChecked(False)
+            self.btn_leitura.blockSignals(False)
         view._ultimo_conteudo = None
         if getattr(view, "_privada", False):
             view._visita_id = -1
@@ -665,6 +728,24 @@ class RedCoreBrowser(QMainWindow):
         settings.set("redcore.bloqueio_anuncios", ligado)
         settings.save()
         self._notificar("Bloqueio de anúncios ligado." if ligado else "Bloqueio de anúncios desligado.")
+
+    # ---------- modo leitura ----------
+
+    def _alternar_modo_leitura(self, ligado: bool):
+        aba = self._aba_atual()
+        if aba is None:
+            return
+        # _JS_MODO_LEITURA já alterna sozinho (remove o <style> se já
+        # existir) -- `ligado` aqui é só o estado do BOTÃO, sincronizamos
+        # `_modo_leitura` da aba com o retorno real do JS injetado.
+        def _apos_alternar(ativo: bool, view=aba):
+            view._modo_leitura = bool(ativo)
+            if view is self._aba_atual():
+                self.btn_leitura.blockSignals(True)
+                self.btn_leitura.setChecked(bool(ativo))
+                self.btn_leitura.blockSignals(False)
+
+        aba.page().runJavaScript(_JS_MODO_LEITURA, _apos_alternar)
 
     # ---------- notificações discretas ----------
 

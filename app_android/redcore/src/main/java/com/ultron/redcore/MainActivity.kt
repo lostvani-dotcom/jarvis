@@ -43,11 +43,12 @@ private const val USER_ID_PADRAO = "default_user"
 /**
  * RedCore Mobile: versão leve do navegador do Ultron (gui/redcore.py,
  * no PC) pro celular -- abas, barra de endereço com busca embutida,
- * voltar/avançar/recarregar, bloqueio de anúncios/rastreadores,
- * favoritos sincronizados com o PC nos dois sentidos e sincronização
- * opcional de histórico (ver Prefs.kt/RedCoreClient.kt/AdBlock.kt),
- * mesmo visual (fundo quase preto, acento vermelho). Aba privada
- * continua exclusiva do RedCore do PC por enquanto.
+ * voltar/avançar/recarregar, bloqueio de anúncios/rastreadores, modo
+ * leitura (ver ReaderMode.kt), favoritos sincronizados com o PC nos
+ * dois sentidos e sincronização opcional de histórico (ver
+ * Prefs.kt/RedCoreClient.kt/AdBlock.kt), mesmo visual (fundo quase
+ * preto, acento vermelho). Aba privada continua exclusiva do RedCore
+ * do PC por enquanto.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -56,7 +57,9 @@ class MainActivity : AppCompatActivity() {
     private val abas = mutableListOf<Aba>()
     private var abaAtivaIndex = -1
 
-    private class Aba(val webView: WebView, val chip: LinearLayout, val tituloView: TextView)
+    private class Aba(val webView: WebView, val chip: LinearLayout, val tituloView: TextView) {
+        var modoLeitura: Boolean = false
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -132,7 +135,12 @@ class MainActivity : AppCompatActivity() {
 
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                    if (indiceDoWebView(view) == abaAtivaIndex) {
+                    val indice = indiceDoWebView(view)
+                    // Navegação nova sempre desliga o modo leitura desta aba
+                    // -- não persiste de uma página pra outra (mesmo
+                    // comportamento do RedCore do PC, ver gui/redcore.py).
+                    abas.getOrNull(indice)?.modoLeitura = false
+                    if (indice == abaAtivaIndex) {
                         binding.addressBar.setText(url ?: "")
                     }
                 }
@@ -266,6 +274,7 @@ class MainActivity : AppCompatActivity() {
             if (jaFavorito) "☆ Remover dos favoritos" else "⭐ Favoritar esta página",
             "Meus favoritos",
             if (prefs.bloqueioAnuncios) "🛡 Bloqueio de anúncios: ligado" else "🛡 Bloqueio de anúncios: desligado",
+            if (abaAtual()?.modoLeitura == true) "📖 Modo leitura: ligado" else "📖 Modo leitura",
             "Configurações",
         )
         AlertDialog.Builder(this)
@@ -274,7 +283,8 @@ class MainActivity : AppCompatActivity() {
                     0 -> alternarFavoritoAtual()
                     1 -> mostrarFavoritos()
                     2 -> alternarBloqueioAnuncios()
-                    3 -> mostrarConfiguracoes()
+                    3 -> alternarModoLeitura()
+                    4 -> mostrarConfiguracoes()
                 }
             }
             .show()
@@ -288,6 +298,17 @@ class MainActivity : AppCompatActivity() {
             Toast.LENGTH_SHORT,
         ).show()
         abaAtual()?.webView?.reload()
+    }
+
+    /** Limpa o clutter da página (heurística, ver ReaderMode.kt) -- por
+     * aba, some sozinho na próxima navegação (ver onPageStarted). O
+     * próprio JS já alterna sozinho (remove o &lt;style&gt; se já
+     * existir), então só refletimos o retorno real no estado da aba. */
+    private fun alternarModoLeitura() {
+        val aba = abaAtual() ?: return
+        aba.webView.evaluateJavascript(ReaderMode.JS) { retorno ->
+            aba.modoLeitura = retorno == "true"
+        }
     }
 
     private fun alternarFavoritoAtual() {

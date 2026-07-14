@@ -132,6 +132,15 @@ class Interpretador:
                 self._executar(instrucao, self.globais)
             except (_QuebraSinal, _ContinuaSinal):
                 raise ErroExecucao("'quebra'/'continua' usado fora de um 'enquanto'/'para'.")
+            except RecursionError:
+                # Cada chamada UltronScript empilha vários frames Python
+                # (_executar -> _exec_* -> _avaliar -> _aval_Chamada ->
+                # chamar -> _executar_bloco -> ...), então o limite de
+                # recursão do Python é estourado bem antes de max_passos
+                # (por volta de ~150 chamadas aninhadas) -- sem isso, uma
+                # recursão profunda (ex.: fatorial/fibonacci sem memoização)
+                # vazaria RecursionError cru em vez de um ErroExecucao claro.
+                raise ErroExecucao("Programa excedeu a profundidade máxima de recursão.")
         return "\n".join(self.saida)
 
     def _checar_limites(self):
@@ -300,7 +309,17 @@ class Interpretador:
         if isinstance(callee, FuncaoJarvisScript):
             return callee.chamar(self, argumentos)
         if callable(callee):
-            return callee(argumentos)
+            # Builtins (len/str/num/tempo) são funções Python de verdade e
+            # podem levantar exceção crua do Python (TypeError de len(5),
+            # ValueError de num("abc"), IndexError de len() sem argumento)
+            # -- sem isso, a exceção vazaria até fora de executar(), quebrando
+            # a garantia de que só ErroExecucao escapa da execução.
+            try:
+                return callee(argumentos)
+            except ErroExecucao:
+                raise
+            except Exception as e:
+                raise ErroExecucao(f"Erro ao chamar builtin: {e}")
         raise ErroExecucao("Só é possível chamar funções.")
 
     def _aval_Indexacao(self, expressao, ambiente):

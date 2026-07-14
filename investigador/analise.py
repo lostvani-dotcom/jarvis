@@ -124,6 +124,7 @@ def _analisar_exe(caminho: str) -> dict:
             resultado["indicios_tecnologia"].append(explicacao)
 
     if HAS_PEFILE:
+        pe = None
         try:
             pe = pefile.PE(caminho, fast_load=True)
             pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_IMPORT"]])
@@ -132,9 +133,16 @@ def _analisar_exe(caminho: str) -> dict:
             if hasattr(pe, "DIRECTORY_ENTRY_IMPORT"):
                 dlls_importadas = [entry.dll.decode(errors="ignore") for entry in pe.DIRECTORY_ENTRY_IMPORT]
             resultado["detalhes"]["dlls_importadas"] = dlls_importadas[:30]
-            pe.close()
         except Exception as e:
             resultado["limitacoes"].append(f"pefile não conseguiu processar o cabeçalho PE ({e}).")
+        finally:
+            # pe.close() só rodava no fim feliz do try -- um PE malformado (o
+            # tipo de arquivo que este módulo mais existe pra analisar) que
+            # falha no meio do parse deixava o mmap do arquivo aberto pra
+            # sempre, travando o arquivo (achado real: ficava impossível
+            # apagar/mover o arquivo analisado depois, no Windows).
+            if pe is not None:
+                pe.close()
     else:
         resultado["limitacoes"].append(
             "Instale 'pefile' (requirements-investigador.txt) pra ver arquitetura/DLLs importadas."

@@ -38,6 +38,7 @@ _ROTULOS = {
     "comentario_tela": "Ultron comentou sobre sua tela",
     "tecnologia_aprendida": "Ultron pesquisou e aprendeu sobre uma tecnologia nova",
     "bateria_celular_baixa": "Bateria do celular ficou baixa (aviso automático)",
+    "bateria_pc_baixa": "Bateria do PC ficou baixa (aviso automático)",
     "instagram_enviado": "Ultron respondeu sozinho no Instagram",
     "video_gravado": "Vídeo da tela gravado",
     "video_editado": "Vídeo editado (corte/aceleração)",
