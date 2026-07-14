@@ -27,9 +27,10 @@ const CATALOGO = [
             "das funções roda 100% offline no próprio celular. Modo nuvem (conversar sem o PC ligado) " +
             "com memória persistente e sincronização automática em segundo plano -- conversa aberta " +
             "com acesso à memória/base de conhecimento completa continua exigindo o Ultron do PC na " +
-            "mesma rede.",
-        versaoNome: "2.0",
-        versaoCodigo: 12,
+            "mesma rede. Não exige mais biometria pra nada -- removida de vez, pra funcionar igual em " +
+            "qualquer aparelho, com ou sem sensor de digital/rosto.",
+        versaoNome: "2.1",
+        versaoCodigo: 13,
         tamanhoMb: 5.4,
         requisito: "Android 8.0 ou superior",
         arquivo: "apps/ultron-companion.apk",
@@ -57,15 +58,18 @@ const CATALOGO = [
         id: "redcore-mobile",
         nome: "RedCore",
         categoria: "Navegador",
-        resumo: "O navegador do Ultron, agora no celular -- abas, busca embutida, modo leitura, favoritos sincronizados com o PC, bloqueio de anúncios.",
+        resumo: "O navegador do Ultron, agora no celular -- abas, busca embutida, modo leitura, painel Shields de bloqueio de anúncios, nova aba com atalhos, favoritos sincronizados com o PC.",
         descricao: "Versão leve do RedCore do PC (gui/redcore.py): abas de verdade, barra de endereço que também " +
-            "pesquisa no Google, voltar/avançar/recarregar, bloqueio de anúncios/rastreadores (menu ⋮, " +
-            "mesma lista de domínios do desktop), modo leitura (limpa o clutter de artigos) e favoritos " +
-            "sincronizados com o RedCore do PC nos dois sentidos. Também sincroniza o histórico de " +
-            "navegação com o Ultron do PC, mas só se você ligar essa opção nas configurações -- desligado " +
-            "por padrão. Aba privada continua exclusiva do RedCore do PC por enquanto.",
-        versaoNome: "1.3",
-        versaoCodigo: 4,
+            "pesquisa no Google, voltar/avançar/recarregar, modo leitura (limpa o clutter de artigos) e " +
+            "favoritos sincronizados com o RedCore do PC nos dois sentidos. Bloqueio de anúncios/" +
+            "rastreadores agora com painel Shields estilo Brave: mostra quantos foram bloqueados NESTA " +
+            "página e o total desde sempre, com o interruptor de ligar/desligar ali mesmo. Toda aba nova " +
+            "abre numa página local com busca e a grade dos seus favoritos (estilo Brave/Chrome), em vez " +
+            "de ir direto pro Google. Também sincroniza o histórico de navegação com o Ultron do PC, mas " +
+            "só se você ligar essa opção nas configurações -- desligado por padrão. Aba privada continua " +
+            "exclusiva do RedCore do PC por enquanto.",
+        versaoNome: "1.4",
+        versaoCodigo: 5,
         tamanhoMb: 5.4,
         requisito: "Android 8.0 ou superior",
         arquivo: "apps/redcore-mobile.apk",

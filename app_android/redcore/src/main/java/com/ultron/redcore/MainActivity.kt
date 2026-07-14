@@ -31,7 +31,7 @@ import java.io.File
 import java.net.URLEncoder
 import kotlin.concurrent.thread
 
-private const val PAGINA_INICIAL = "https://www.google.com/"
+private const val PAGINA_INICIAL = "redcore://home"  // sentinela -- ver novaAba() e gerarHtmlNovaAba()
 private const val LARGURA_MAX_TITULO = 18
 
 /** Mesmo "usuário padrão" usado em todo o resto do projeto quando não
@@ -43,9 +43,11 @@ private const val USER_ID_PADRAO = "default_user"
 /**
  * RedCore Mobile: versão leve do navegador do Ultron (gui/redcore.py,
  * no PC) pro celular -- abas, barra de endereço com busca embutida,
- * voltar/avançar/recarregar, bloqueio de anúncios/rastreadores, modo
- * leitura (ver ReaderMode.kt), favoritos sincronizados com o PC nos
- * dois sentidos e sincronização opcional de histórico (ver
+ * voltar/avançar/recarregar, bloqueio de anúncios/rastreadores com
+ * painel Shields estilo Brave (ver mostrarShields), modo leitura (ver
+ * ReaderMode.kt), nova aba com busca + grade de favoritos estilo
+ * speed dial (ver gerarHtmlNovaAba), favoritos sincronizados com o PC
+ * nos dois sentidos e sincronização opcional de histórico (ver
  * Prefs.kt/RedCoreClient.kt/AdBlock.kt), mesmo visual (fundo quase
  * preto, acento vermelho). Aba privada continua exclusiva do RedCore
  * do PC por enquanto.
@@ -59,6 +61,7 @@ class MainActivity : AppCompatActivity() {
 
     private class Aba(val webView: WebView, val chip: LinearLayout, val tituloView: TextView) {
         var modoLeitura: Boolean = false
+        var bloqueiosPagina: Int = 0
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -136,12 +139,19 @@ class MainActivity : AppCompatActivity() {
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                     val indice = indiceDoWebView(view)
-                    // Navegação nova sempre desliga o modo leitura desta aba
-                    // -- não persiste de uma página pra outra (mesmo
-                    // comportamento do RedCore do PC, ver gui/redcore.py).
-                    abas.getOrNull(indice)?.modoLeitura = false
+                    // Navegação nova sempre desliga o modo leitura e zera a
+                    // contagem de bloqueios desta aba -- Shields mostra o
+                    // bloqueado NESTA página (mesmo espírito do RedCore do
+                    // PC, ver gui/redcore.py).
+                    abas.getOrNull(indice)?.let {
+                        it.modoLeitura = false
+                        it.bloqueiosPagina = 0
+                    }
                     if (indice == abaAtivaIndex) {
-                        binding.addressBar.setText(url ?: "")
+                        // Nova aba (speed dial) mostra a barra em branco,
+                        // mesmo espírito do RedCore do PC (gui/redcore.py)
+                        // -- "redcore://home" não é um endereço de verdade.
+                        binding.addressBar.setText(if (url == PAGINA_INICIAL) "" else (url ?: ""))
                     }
                 }
 
@@ -156,6 +166,22 @@ class MainActivity : AppCompatActivity() {
                 ): android.webkit.WebResourceResponse? {
                     val alvo = request?.url?.toString()
                     if (prefs.bloqueioAnuncios && alvo != null && AdBlock.bloqueado(alvo)) {
+                        // shouldInterceptRequest pode rodar numa thread de
+                        // fundo, e mais de uma chamada pode chegar em
+                        // paralelo (várias requisições bloqueadas de uma vez
+                        // na mesma página) -- incrementarBloqueiosTotais() é
+                        // sincronizado (ver Prefs.kt) pra não perder
+                        // contagem num read-modify-write concorrente. E
+                        // indiceDoWebView() (que percorre `abas`, mutado só
+                        // na UI thread por novaAba()/fecharAba()) só pode
+                        // rodar DENTRO do runOnUiThread -- chamá-lo aqui fora
+                        // correria com abas.add()/removeAt() e podia lançar
+                        // ConcurrentModificationException.
+                        prefs.incrementarBloqueiosTotais()
+                        runOnUiThread {
+                            val indice = indiceDoWebView(view)
+                            abas.getOrNull(indice)?.let { it.bloqueiosPagina += 1 }
+                        }
                         return AdBlock.respostaVazia()
                     }
                     return super.shouldInterceptRequest(view, request)
@@ -178,7 +204,99 @@ class MainActivity : AppCompatActivity() {
         (chip.getChildAt(1) as View).setOnClickListener { fecharAba(abas.indexOf(aba)) }
 
         selecionarAba(abas.size - 1)
-        webView.loadUrl(url)
+        if (url == PAGINA_INICIAL) {
+            // Nova aba (speed dial): renderizada localmente, não pede
+            // nada pra rede -- ver gerarHtmlNovaAba(). historyUrl =
+            // baseUrl = PAGINA_INICIAL pra webView.url refletir a
+            // sentinela (mesmo truque de QWebEngineView.setHtml no PC).
+            webView.loadDataWithBaseURL(PAGINA_INICIAL, gerarHtmlNovaAba(), "text/html", "utf-8", PAGINA_INICIAL)
+        } else {
+            webView.loadUrl(url)
+        }
+    }
+
+    /** Nova aba estilo Brave/Chrome: caixa de busca + grade de
+     * favoritos (Prefs.listarFavoritos, já sincronizados com o PC),
+     * mesma paleta vermelho/escuro do resto do app -- "interface do
+     * Brave" aqui é o padrão de interação (busca + atalhos em grade),
+     * não uma repintura de marca. Mesma lógica de
+     * gui/redcore.py:_gerar_html_nova_aba. */
+    private fun gerarHtmlNovaAba(): String {
+        val favoritos = prefs.listarFavoritos().take(12)
+        val tiles = if (favoritos.isEmpty()) {
+            "<p class=\"vazio\">Nenhum favorito ainda -- toque em ⋮ numa página pra favoritar.</p>"
+        } else {
+            favoritos.joinToString("") { f ->
+                val url = f.url
+                // Só http(s) -- sincronizarFavoritosDoPc() grava direto via
+                // salvarFavoritos(), sem passar por alternarFavorito(), então
+                // um favorito ruim vindo do PC (ex.: "javascript:...") pode
+                // parar aqui mesmo com a validação nos outros pontos. Sem
+                // esse filtro, viraria um <a href> clicável executando
+                // script na origem do WebView.
+                if (!url.startsWith("http://") && !url.startsWith("https://")) return@joinToString ""
+                val titulo = f.titulo.ifBlank { url }
+                val host = try { Uri.parse(url).host } catch (e: Exception) { null }
+                val inicial = (host?.firstOrNull() ?: titulo.firstOrNull() ?: '?').uppercaseChar()
+                val urlEscapada = android.text.Html.escapeHtml(url)
+                val tituloEscapado = android.text.Html.escapeHtml(titulo.take(22))
+                val inicialEscapada = android.text.Html.escapeHtml(inicial.toString())
+                """
+                <a class="tile" href="$urlEscapada">
+                  <div class="tile-icone">$inicialEscapada</div>
+                  <div class="tile-titulo">$tituloEscapado</div>
+                </a>"""
+            }
+        }
+        return """
+        <!DOCTYPE html>
+        <html lang="pt-br">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Nova aba</title>
+        <style>
+          * { box-sizing: border-box; }
+          body {
+            margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 26px; padding: 24px 16px;
+            background: #0c0505; color: #fbf9f9; font-family: sans-serif;
+          }
+          form { width: 100%; max-width: 420px; }
+          input[type="text"] {
+            width: 100%; padding: 12px 16px; font-size: 15px; border-radius: 22px;
+            border: 1px solid #382323; background: #1b1010; color: #fbf9f9; outline: none;
+          }
+          .grade {
+            display: grid; grid-template-columns: repeat(auto-fit, 80px); gap: 14px;
+            justify-content: center; width: 100%; max-width: 420px;
+          }
+          .tile {
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            text-decoration: none; color: #e7e5e5; padding: 8px 2px; border-radius: 10px;
+          }
+          .tile-icone {
+            width: 40px; height: 40px; border-radius: 50%; background: #241515;
+            border: 1px solid #382323; display: flex; align-items: center; justify-content: center;
+            font-size: 15px; font-weight: 600; color: #ff5f52;
+          }
+          .tile-titulo {
+            font-size: 11px; text-align: center; max-width: 78px; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; color: #c9baba;
+          }
+          .vazio { color: #8f7c7c; font-size: 12px; max-width: 280px; text-align: center; }
+          .marca { color: #c9baba; font-size: 18px; font-weight: 600; }
+        </style>
+        </head>
+        <body>
+          <div class="marca">🔴 RedCore</div>
+          <form action="https://www.google.com/search" method="GET">
+            <input type="text" name="q" placeholder="Pesquisar ou digitar um endereço" autofocus>
+          </form>
+          <div class="grade">$tiles</div>
+        </body>
+        </html>
+        """.trimIndent()
     }
 
     private fun indiceDoWebView(view: WebView?): Int = abas.indexOfFirst { it.webView === view }
@@ -270,10 +388,11 @@ class MainActivity : AppCompatActivity() {
     private fun abrirMenuDeOpcoes() {
         val urlAtual = abaAtual()?.webView?.url ?: ""
         val jaFavorito = urlAtual.isNotEmpty() && prefs.ehFavorito(urlAtual)
+        val bloqueiosPagina = abaAtual()?.bloqueiosPagina ?: 0
         val opcoes = arrayOf(
             if (jaFavorito) "☆ Remover dos favoritos" else "⭐ Favoritar esta página",
             "Meus favoritos",
-            if (prefs.bloqueioAnuncios) "🛡 Bloqueio de anúncios: ligado" else "🛡 Bloqueio de anúncios: desligado",
+            "🛡 Shields ($bloqueiosPagina bloqueado(s) nesta página)",
             if (abaAtual()?.modoLeitura == true) "📖 Modo leitura: ligado" else "📖 Modo leitura",
             "Configurações",
         )
@@ -282,7 +401,7 @@ class MainActivity : AppCompatActivity() {
                 when (which) {
                     0 -> alternarFavoritoAtual()
                     1 -> mostrarFavoritos()
-                    2 -> alternarBloqueioAnuncios()
+                    2 -> mostrarShields()
                     3 -> alternarModoLeitura()
                     4 -> mostrarConfiguracoes()
                 }
@@ -290,14 +409,39 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun alternarBloqueioAnuncios() {
-        prefs.bloqueioAnuncios = !prefs.bloqueioAnuncios
-        Toast.makeText(
-            this,
-            if (prefs.bloqueioAnuncios) "Bloqueio de anúncios ligado." else "Bloqueio de anúncios desligado.",
-            Toast.LENGTH_SHORT,
-        ).show()
-        abaAtual()?.webView?.reload()
+    /** Painel "Shields", estilo Brave: quanto foi bloqueado NESTA
+     * página, o total desde sempre, e o interruptor de ligar/desligar
+     * -- tudo num lugar só, com contexto pra decisão, em vez de um
+     * toggle solto sem número nenhum do que ele está fazendo. */
+    private fun mostrarShields() {
+        val aba = abaAtual()
+        val host = aba?.webView?.url?.let { android.net.Uri.parse(it).host } ?: ""
+        val bloqueiosPagina = aba?.bloqueiosPagina ?: 0
+
+        val view = layoutInflater.inflate(R.layout.dialog_shields, null)
+        view.findViewById<TextView>(R.id.shieldsTitulo).text =
+            if (host.isNullOrEmpty()) "🛡 Shields" else "🛡 Shields para $host"
+        view.findViewById<TextView>(R.id.shieldsPagina).text =
+            "$bloqueiosPagina rastreador(es)/anúncio(s) bloqueado(s) nesta página."
+        view.findViewById<TextView>(R.id.shieldsTotal).text =
+            "${prefs.bloqueiosTotais} bloqueado(s) ao todo, desde sempre."
+        val chk = view.findViewById<CheckBox>(R.id.shieldsToggle)
+        chk.isChecked = prefs.bloqueioAnuncios
+
+        AlertDialog.Builder(this)
+            .setView(view)
+            .setPositiveButton("Fechar") { _, _ ->
+                if (chk.isChecked != prefs.bloqueioAnuncios) {
+                    prefs.bloqueioAnuncios = chk.isChecked
+                    Toast.makeText(
+                        this,
+                        if (prefs.bloqueioAnuncios) "Bloqueio de anúncios ligado." else "Bloqueio de anúncios desligado.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    abaAtual()?.webView?.reload()
+                }
+            }
+            .show()
     }
 
     /** Limpa o clutter da página (heurística, ver ReaderMode.kt) -- por
@@ -314,6 +458,7 @@ class MainActivity : AppCompatActivity() {
     private fun alternarFavoritoAtual() {
         val webView = abaAtual()?.webView ?: return
         val url = webView.url ?: return
+        if (url == PAGINA_INICIAL) return  // nova aba (speed dial) não é favoritável
         val titulo = webView.title ?: url
         val agoraFavorito = prefs.alternarFavorito(titulo, url)
         Toast.makeText(
@@ -355,7 +500,14 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Favoritos (toque pra abrir)")
             .setItems(titulos) { _, which ->
-                novaAba(favoritos[which].url)
+                val url = favoritos[which].url
+                // Defesa em profundidade -- ver gerarHtmlNovaAba: não abre
+                // um favorito com esquema fora de http(s).
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    novaAba(url)
+                } else {
+                    Toast.makeText(this, "Favorito com endereço inválido -- remova-o.", Toast.LENGTH_SHORT).show()
+                }
             }
             .setNegativeButton("Gerenciar") { _, _ -> gerenciarFavoritos(favoritos) }
             .setPositiveButton("Fechar", null)

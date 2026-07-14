@@ -34,6 +34,27 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("bloqueio_anuncios", true)
         set(value) = sp.edit().putBoolean("bloqueio_anuncios", value).apply()
 
+    /** Total de rastreadores/anúncios bloqueados desde sempre (Shields,
+     * estilo Brave) -- diferente do contador por aba (Aba.bloqueiosPagina,
+     * zera a cada navegação), este só cresce. */
+    var bloqueiosTotais: Int
+        get() = sp.getInt("bloqueios_totais", 0)
+        set(value) = sp.edit().putInt("bloqueios_totais", value).apply()
+
+    /** Incrementa bloqueiosTotais de forma atômica -- shouldInterceptRequest
+     * (MainActivity.kt) pode chamar isto de mais de uma thread de fundo ao
+     * mesmo tempo (várias requisições bloqueadas em paralelo na mesma
+     * página); um `bloqueiosTotais += 1` comum ali seria um
+     * read-modify-write não atômico e perderia incrementos na corrida.
+     * @Synchronized tranca em `this` (a instância de Prefs, uma só por
+     * MainActivity), suficiente pra serializar as chamadas. */
+    @Synchronized
+    fun incrementarBloqueiosTotais(): Int {
+        val novo = bloqueiosTotais + 1
+        bloqueiosTotais = novo
+        return novo
+    }
+
     /** Desligado por padrão -- ver server/http_server.py:/redcore/historico
      * e a decisão de projeto de manter isso opt-in (histórico de
      * navegação é dado sensível, diferente de "qual app instalar"). */
@@ -77,6 +98,9 @@ class Prefs(context: Context) {
             atuais.removeAt(existente)
             agoraFavorito = false
         } else {
+            // Só http(s) -- ver MainActivity.gerarHtmlNovaAba: um favorito
+            // "javascript:..." viraria link clicável executando script.
+            if (!url.startsWith("http://") && !url.startsWith("https://")) return false
             atuais.add(0, Favorito(titulo.ifBlank { url }, url))
             agoraFavorito = true
         }

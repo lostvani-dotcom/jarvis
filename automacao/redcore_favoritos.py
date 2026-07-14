@@ -29,7 +29,17 @@ def _ensure_schema():
 
 def adicionar(user_id: str, url: str, titulo: str = "") -> bool:
     """Adiciona (ou atualiza o título de) um favorito. Retorna True se
-    era novo, False se já existia (só atualizou o título)."""
+    era novo, False se já existia (só atualizou o título) ou se a url
+    não é http(s) (rejeitado, sem gravar nada).
+
+    Só http(s) -- gui/redcore.py:_gerar_html_nova_aba e o
+    gerarHtmlNovaAba() do RedCore Mobile renderizam favoritos como
+    `<a href="...">` clicável; sem essa validação, uma url tipo
+    `javascript:...` salva via POST /redcore/favoritos (server/
+    http_server.py:_alterar_favorito_redcore) executaria script na
+    origem do navegador assim que a nova aba (speed dial) fosse aberta."""
+    if not url.startswith("http://") and not url.startswith("https://"):
+        return False
     _ensure_schema()
     ja_existia = get_database().query_one(
         "SELECT id FROM redcore_favoritos WHERE user_id=? AND url=?", (user_id, url)

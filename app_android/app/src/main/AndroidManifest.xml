@@ -32,11 +32,6 @@
          (LocalCommands.kt: AlarmClock.ACTION_SET_ALARM/SET_TIMER);
          permissao normal, concedida automaticamente na instalacao. -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
-    <!-- Bloqueio do app por face/digital do dono (ver AppLock.kt): exigida
-         pelo BiometricPrompt do framework (API 28+), mesmo sendo permissao
-         "normal" concedida na instalacao. Sem ela, authenticate() lanca
-         SecurityException na hora (era a causa do "abre e fecha na hora"). -->
-    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <application
         android:allowBackup="true"

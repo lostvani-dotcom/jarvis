@@ -444,8 +444,18 @@ class _Handler(BaseHTTPRequestHandler):
         titulo = dados.get("titulo", "")
         acao = dados.get("acao", "adicionar")
         if acao == "remover":
+            # Sem checar esquema aqui -- "remover" precisa continuar
+            # funcionando mesmo pra limpar um favorito ruim (ex.:
+            # "javascript:...") que já esteja salvo de antes deste fix.
             redcore_favoritos.remover(user_id, url)
         else:
+            # Só http(s) -- rejeita aqui com erro claro (redcore_favoritos.
+            # adicionar também rejeita, mas em silêncio); um favorito com
+            # esquema tipo "javascript:" renderizaria como link clicável
+            # na nova aba (speed dial) e executaria script.
+            if not url.startswith("http://") and not url.startswith("https://"):
+                self._send_json(400, {"erro": "campo 'url' precisa ser http:// ou https://"})
+                return
             redcore_favoritos.adicionar(user_id, url, titulo)
         self._send_json(200, {"ok": True})
 

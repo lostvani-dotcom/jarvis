@@ -103,19 +103,27 @@ class Settings:
         env_name = "JARVIS_" + path.upper().replace(".", "_")
         if env_name in os.environ:
             return os.environ[env_name]
-        node = self._data
-        for part in path.split("."):
-            if not isinstance(node, dict) or part not in node:
-                return default
-            node = node[part]
-        return node
+        with self._lock:
+            node = self._data
+            for part in path.split("."):
+                if not isinstance(node, dict) or part not in node:
+                    return default
+                node = node[part]
+            return node
 
     def set(self, path: str, value):
-        parts = path.split(".")
-        node = self._data
-        for part in parts[:-1]:
-            node = node.setdefault(part, {})
-        node[parts[-1]] = value
+        # Precisa do mesmo lock que save()/reload() usam em self._data --
+        # sem isso, um set() concorrente com save() pode mutar o dict
+        # bem no meio do json.dump() percorrendo ele (RuntimeError:
+        # dictionary changed size during iteration), corrompendo
+        # config.json pela metade e derrubando token/api_keys salvos no
+        # próximo load.
+        with self._lock:
+            parts = path.split(".")
+            node = self._data
+            for part in parts[:-1]:
+                node = node.setdefault(part, {})
+            node[parts[-1]] = value
 
     def is_module_enabled(self, module_name: str) -> bool:
         value = self.get(f"modulos.{module_name}", True)

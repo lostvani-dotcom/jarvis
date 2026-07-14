@@ -57,7 +57,6 @@ class MainActivity : AppCompatActivity() {
     private var tts: TextToSpeech? = null
     private var ultimaEntradaFoiVoz = false
     private var micPulseAnimator: ObjectAnimator? = null
-    private var desbloqueado = false
 
     /** Id da conversa atualmente aberta na tela -- gerado uma vez por
      * "nova conversa" (ou ao abrir o app pela 1ª vez) e reaproveitado a
@@ -71,12 +70,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         prefs = Prefs(this)
-        // Bloqueio de app: se ligado, esconde tudo e pede a face/digital
-        // do dono antes de liberar. Feito logo no onCreate pra o conteúdo
-        // nunca aparecer antes da autenticação.
-        if (prefs.appLockAtivo && !desbloqueado) {
-            binding.root.visibility = View.INVISIBLE
-        }
 
         chatAdapter = ChatAdapter()
         binding.chatRecycler.layoutManager = LinearLayoutManager(this)
@@ -147,17 +140,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Convida a proteger o app na primeira abertura (depois do
-        // onboarding acima) -- só uma vez, sem insistir.
-        binding.root.post { oferecerBloqueioApp() }
-
-        // Sem bloqueio ativo, pode escutar assim que a tela abrir; COM
-        // bloqueio, só depois de autenticar (ver onStart) -- nunca antes,
-        // senão o atalho de hardware furaria o bloqueio do app.
-        if (!prefs.appLockAtivo) {
-            processarAutoEscuta()
-            processarCompartilhamento()
-        }
+        processarAutoEscuta()
+        processarCompartilhamento()
     }
 
     /** Ver EXTRA_AUTO_INICIAR_ESCUTA -- chamado só uma vez por Intent
@@ -192,36 +176,7 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (!prefs.appLockAtivo || desbloqueado) processarCompartilhamento()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        // Toda vez que o app volta ao primeiro plano com o bloqueio ligado,
-        // exige a autenticação de novo (ex.: deixou aberto e outra pessoa
-        // pegou depois). `desbloqueado` só vale enquanto o app fica visível.
-        if (prefs.appLockAtivo && !desbloqueado) {
-            binding.root.visibility = View.INVISIBLE
-            AppLock.autenticar(
-                this,
-                onSucesso = {
-                    desbloqueado = true
-                    binding.root.visibility = View.VISIBLE
-                    processarAutoEscuta()
-                    processarCompartilhamento()
-                },
-                onFalha = {
-                    Toast.makeText(this, "Acesso negado.", Toast.LENGTH_SHORT).show()
-                    finish()  // fecha o app -- só o dono entra
-                },
-            )
-        }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        // Ao sair de primeiro plano, re-arma o bloqueio pra próxima vez.
-        if (prefs.appLockAtivo) desbloqueado = false
+        processarCompartilhamento()
     }
 
     override fun onDestroy() {
@@ -229,63 +184,6 @@ class MainActivity : AppCompatActivity() {
         tts?.stop()
         tts?.shutdown()
         super.onDestroy()
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        // Caminho KeyguardManager (Android 8.0-8.1): resultado da tela de
-        // credencial do sistema.
-        if (AppLock.ehRequestKeyguard(requestCode)) {
-            if (AppLock.resultadoKeyguard(requestCode, resultCode)) {
-                desbloqueado = true
-                binding.root.visibility = View.VISIBLE
-            } else {
-                Toast.makeText(this, "Acesso negado.", Toast.LENGTH_SHORT).show()
-                finish()
-            }
-        }
-    }
-
-    /** Convite (uma vez) pra ligar o bloqueio do app usando a biometria
-     * do próprio celular. Chamado depois do onboarding de conexão. Não
-     * insiste: se recusar, marca como perguntado e segue. */
-    private fun oferecerBloqueioApp() {
-        if (prefs.lockSetupPerguntado || prefs.appLockAtivo) return
-        prefs.lockSetupPerguntado = true
-        if (!AppLock.temBloqueioConfigurado(this)) {
-            // Sem face/digital/PIN no celular não dá pra proteger -- guia
-            // o usuário a cadastrar primeiro (é lá que "registra a face").
-            AlertDialog.Builder(this)
-                .setTitle("Proteger o Ultron")
-                .setMessage(
-                    "Pra deixar que só você abra o Ultron, cadastre uma face ou digital nas " +
-                        "configurações de segurança do celular. Depois volte e ative o bloqueio.",
-                )
-                .setPositiveButton("Abrir configurações") { _, _ ->
-                    try {
-                        startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
-                    } catch (e: Exception) {
-                        startActivity(Intent(Settings.ACTION_SETTINGS))
-                    }
-                }
-                .setNegativeButton("Agora não", null)
-                .show()
-            return
-        }
-        AlertDialog.Builder(this)
-            .setTitle("Proteger o Ultron")
-            .setMessage(
-                "Quer que só você consiga abrir o Ultron? Vou usar a face/digital que já está " +
-                    "cadastrada no seu celular -- se outra pessoa tentar abrir, não passa.",
-            )
-            .setPositiveButton("Ativar bloqueio") { _, _ ->
-                prefs.appLockAtivo = true
-                desbloqueado = true // acabou de configurar, não trava agora
-                Toast.makeText(this, "Bloqueio ativado.", Toast.LENGTH_SHORT).show()
-                adicionarMensagem("Bloqueio ativado -- a partir de agora só você me abre.", Remetente.SISTEMA)
-            }
-            .setNegativeButton("Agora não", null)
-            .show()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

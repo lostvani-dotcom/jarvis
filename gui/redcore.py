@@ -47,13 +47,16 @@ Melhorias (pedido do usuário, "melhora o navegador"):
   - **Aba privada/anônima** (🕵): usa um `QWebEngineProfile` PRÓPRIO,
     fora do registro (off-the-record -- cookies/cache só em memória,
     somem ao fechar a aba) e nunca grava no histórico do RedCore.
-  - **Bloqueio de anúncios/rastreadores** (🛡, `_AdBlockInterceptor`):
-    lista curada de domínios de publicidade/rastreamento conhecidos,
-    bloqueados via `QWebEngineUrlRequestInterceptor` -- não é uma lista
-    completa tipo EasyList, é o suficiente pra cortar o grosso da
-    telemetria/anúncios sem depender de arquivo externo. Tem um botão
-    pra desligar (persiste em config.json -> redcore.bloqueio_anuncios)
-    caso algum site quebre por causa disso.
+  - **Shields, estilo Brave** (🛡, `_AdBlockInterceptor`): lista curada
+    de domínios de publicidade/rastreamento conhecidos, bloqueados via
+    `QWebEngineUrlRequestInterceptor` -- não é uma lista completa tipo
+    EasyList, é o suficiente pra cortar o grosso da telemetria/anúncios
+    sem depender de arquivo externo. O botão na barra mostra quantos
+    rastreadores/anúncios foram bloqueados NESTA página (zera a cada
+    navegação) e abre um painel com esse número, o total bloqueado
+    desde sempre, e o interruptor de ligar/desligar (persiste em
+    config.json -> redcore.bloqueio_anuncios) caso algum site quebre
+    por causa disso.
   - **Modo leitura** (📖, `_JS_MODO_LEITURA`): injeta um `<style>` que
     esconde navegação/barras laterais/anúncios/comentários por
     heurística (seletores comuns, não é um algoritmo de extração de
@@ -61,17 +64,26 @@ Melhorias (pedido do usuário, "melhora o navegador"):
     legível. Por aba, não persiste entre páginas (mesmo espírito do
     modo leitura de qualquer navegador de verdade: liga de novo se
     quiser em cada artigo).
+  - **Nova aba (speed dial)** (`_gerar_html_nova_aba`): toda aba nova
+    abre numa página local (não pede nada pra rede) com caixa de busca
+    e a grade dos favoritos (automacao/redcore_favoritos.py), estilo
+    Brave/Chrome -- não é uma navegação de verdade (sentinela
+    `_PAGINA_INICIAL`, "redcore://home"), então não vira linha no
+    histórico nem é favoritável.
 """
 
+import html
 import os
 import sys
+import time
+import urllib.parse
 
-from PySide6.QtCore import QUrl, Qt, QTimer
+from PySide6.QtCore import QUrl, Qt, QTimer, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-    QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QTabWidget,
-    QToolBar, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit,
+    QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QPushButton,
+    QTabWidget, QToolBar, QVBoxLayout, QWidget,
 )
 from PySide6.QtWebEngineCore import (
     QWebEngineDownloadRequest, QWebEnginePage, QWebEngineProfile,
@@ -79,7 +91,7 @@ from PySide6.QtWebEngineCore import (
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
-_PAGINA_INICIAL = "https://www.google.com/"
+_PAGINA_INICIAL = "redcore://home"  # sentinela -- ver nova_aba() e _gerar_html_nova_aba
 _INTERVALO_CAPTURA_MS = 20_000  # 20s -- frequente o bastante pra pegar troca de e-mail
 _MIN_CONTEUDO_CHARS = 20  # ignora capturas triviais (tela em branco/carregando)
 _DOWNLOADS_DIR = os.path.join(
@@ -172,6 +184,97 @@ QLabel { color: #c9baba; }
 """
 
 
+def _gerar_html_nova_aba(user_id: str) -> str:
+    """Nova aba estilo Brave/Chrome: caixa de busca + grade de favoritos
+    (automacao/redcore_favoritos.py) renderizada localmente via
+    `view.setHtml` (sem pedir nada pra rede -- ver nova_aba). Mantém a
+    identidade visual vermelho/escuro do próprio Ultron (mesma paleta de
+    _ESTILO) em vez de copiar as cores do Brave -- "interface do Brave"
+    aqui é o PADRÃO de interação (busca + atalhos em grade), não uma
+    repintura da marca."""
+    from automacao import redcore_favoritos
+
+    try:
+        favoritos = redcore_favoritos.listar(user_id)
+    except Exception:
+        favoritos = []
+
+    tiles = ""
+    for f in favoritos[:12]:
+        url = f["url"] or ""
+        # Só http(s) -- automacao/redcore_favoritos.adicionar() já rejeita
+        # qualquer outro esquema ao SALVAR, mas o filtro aqui é redundância
+        # de propósito (defesa em profundidade): cobre favoritos que já
+        # estavam no banco antes desse fix existir. Sem isso, um favorito
+        # "javascript:..." viraria um <a href> clicável que executa script
+        # na origem do navegador assim que a nova aba (speed dial) abrisse.
+        if not (url.startswith("http://") or url.startswith("https://")):
+            continue
+        titulo = (f["titulo"] or "").strip() or urllib.parse.urlparse(url).netloc or url
+        inicial = (urllib.parse.urlparse(url).netloc or titulo)[:1].upper() or "?"
+        # html.escape protege contra um título/url de página que contenha
+        # marcação HTML (a validação de esquema acima cuida do resto).
+        tiles += f"""
+        <a class="tile" href="{html.escape(url, quote=True)}" title="{html.escape(url, quote=True)}">
+          <div class="tile-icone">{html.escape(inicial)}</div>
+          <div class="tile-titulo">{html.escape(titulo[:26])}</div>
+        </a>"""
+
+    if not tiles:
+        tiles = '<p class="vazio">Nenhum favorito ainda -- clique na ⭐ na barra de endereço pra ver os atalhos aqui.</p>'
+
+    return f"""<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Nova aba</title>
+<style>
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0; height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 32px;
+    background: #0c0505; color: #fbf9f9;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }}
+  form {{ width: min(520px, 86vw); }}
+  input[type="text"] {{
+    width: 100%; padding: 14px 18px; font-size: 15px; border-radius: 24px;
+    border: 1px solid #382323; background: #1b1010; color: #fbf9f9; outline: none;
+  }}
+  input[type="text"]:focus {{ border-color: #c22a1f; }}
+  .grade {{
+    display: grid; grid-template-columns: repeat(auto-fit, 96px); gap: 18px;
+    justify-content: center; width: min(680px, 90vw);
+  }}
+  .tile {{
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    text-decoration: none; color: #e7e5e5; padding: 10px 4px;
+    border-radius: 10px;
+  }}
+  .tile:hover {{ background: #1b0f0f; }}
+  .tile-icone {{
+    width: 44px; height: 44px; border-radius: 50%; background: #241515;
+    border: 1px solid #382323; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 600; color: #ff5f52;
+  }}
+  .tile-titulo {{
+    font-size: 12px; text-align: center; max-width: 92px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; color: #c9baba;
+  }}
+  .vazio {{ color: #8f7c7c; font-size: 13px; max-width: 320px; text-align: center; }}
+  .marca {{ color: #c9baba; font-size: 22px; font-weight: 600; letter-spacing: 0.5px; }}
+</style>
+</head>
+<body>
+  <div class="marca">🔴 RedCore</div>
+  <form action="https://www.google.com/search" method="GET">
+    <input type="text" name="q" placeholder="Pesquisar ou digitar um endereço" autofocus>
+  </form>
+  <div class="grade">{tiles}</div>
+</body>
+</html>"""
+
+
 def _evitar_sobrescrever(caminho: str) -> str:
     """Nunca sobrescreve um download existente -- acrescenta ' (N)'
     antes da extensão até achar um nome livre (mesmo padrão que
@@ -188,7 +291,16 @@ def _evitar_sobrescrever(caminho: str) -> str:
 class _AdBlockInterceptor(QWebEngineUrlRequestInterceptor):
     """Bloqueia requisições cujo host bate com `_DOMINIOS_BLOQUEADOS`
     (domínio exato ou subdomínio dele). `.ativo` liga/desliga em tempo
-    real sem precisar recriar o interceptor."""
+    real sem precisar recriar o interceptor.
+
+    `bloqueado` (sinal Qt, não callback Python direto) avisa a janela
+    principal sempre que algo é bloqueado -- `interceptRequest` roda na
+    thread de rede do QtWebEngine, NUNCA na thread principal da GUI, e
+    widgets Qt só podem ser tocados na thread principal. Um sinal Qt
+    cruza threads em segurança sozinho (conexão em fila automática);
+    chamar um callback Python comum aqui tocaria a UI da thread errada."""
+
+    bloqueado = Signal(str)  # host da página (primeira parte) que originou o pedido bloqueado
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -203,6 +315,9 @@ class _AdBlockInterceptor(QWebEngineUrlRequestInterceptor):
         for dominio in _DOMINIOS_BLOQUEADOS:
             if host == dominio or host.endswith("." + dominio):
                 info.block(True)
+                pagina_host = info.firstPartyUrl().host().lower()
+                if pagina_host:
+                    self.bloqueado.emit(pagina_host)
                 return
 
 
@@ -220,6 +335,14 @@ class RedCoreBrowser(QMainWindow):
         from config.settings import get_settings
         self._interceptor = _AdBlockInterceptor(self)
         self._interceptor.ativo = bool(get_settings().get("redcore.bloqueio_anuncios", True))
+        self._interceptor.bloqueado.connect(self._registrar_bloqueio)
+        # Total de bloqueios desde sempre (Shields, estilo Brave) --
+        # persistido em config.json, só escrito em disco com um
+        # intervalo mínimo entre gravações (ver _registrar_bloqueio),
+        # senão uma página com dezenas de rastreadores numa rajada só
+        # deixaria isso lento à toa.
+        self._bloqueios_totais = int(get_settings().get("redcore.bloqueios_totais", 0))
+        self._ultimo_save_bloqueios = 0.0
         self._configurar_profile(QWebEngineProfile.defaultProfile())
 
         self.tabs = QTabWidget()
@@ -299,12 +422,10 @@ class RedCoreBrowser(QMainWindow):
         btn_busca.clicked.connect(self._alternar_busca)
         barra.addWidget(btn_busca)
 
-        btn_bloqueio = QPushButton("🛡")
-        btn_bloqueio.setToolTip("Bloquear anúncios/rastreadores")
-        btn_bloqueio.setCheckable(True)
-        btn_bloqueio.setChecked(self._interceptor.ativo)
-        btn_bloqueio.toggled.connect(self._alternar_bloqueio)
-        barra.addWidget(btn_bloqueio)
+        self.btn_shields = QPushButton("🛡")
+        self.btn_shields.setToolTip("Shields -- rastreadores/anúncios bloqueados nesta página (clique pra ver detalhes)")
+        self.btn_shields.clicked.connect(self._abrir_shields)
+        barra.addWidget(self.btn_shields)
 
         self.btn_leitura = QPushButton("📖")
         self.btn_leitura.setToolTip("Modo leitura -- limpa o clutter da página (por aba, some ao navegar)")
@@ -423,7 +544,14 @@ class RedCoreBrowser(QMainWindow):
         view._visita_id = -1          # id da linha do histórico da visita atual (redcore_historico)
         view._ultimo_conteudo = None  # último texto capturado -- evita logar a mesma coisa de novo
         view._modo_leitura = False    # por aba -- ver _alternar_modo_leitura
-        view.load(QUrl(url))
+        view._bloqueios_pagina = 0    # por aba -- ver _registrar_bloqueio (Shields, estilo Brave)
+        if url == _PAGINA_INICIAL:
+            # Nova aba (speed dial): renderizada localmente, não é uma
+            # navegação de verdade -- não passa por load()/_url_mudou,
+            # então não vira linha de histórico nem tenta resolver DNS.
+            view.setHtml(_gerar_html_nova_aba(self.user_id), QUrl(_PAGINA_INICIAL))
+        else:
+            view.load(QUrl(url))
         indice = self.tabs.addTab(view, "🕵 Nova aba privada" if privada else "Nova aba")
         self.tabs.setCurrentIndex(indice)
 
@@ -455,13 +583,15 @@ class RedCoreBrowser(QMainWindow):
     def _aba_mudou(self, _indice: int):
         aba = self._aba_atual()
         if aba is not None:
-            self.barra_endereco.setText(aba.url().toString())
+            url = aba.url().toString()
+            self.barra_endereco.setText("" if url == _PAGINA_INICIAL else url)
         # blockSignals evita reentrar em _alternar_modo_leitura (que agiria
         # na aba ERRADA -- ele sempre opera na aba "atual" no momento do
         # toggle, e aqui só queremos REFLETIR o estado, não mudar nada).
         self.btn_leitura.blockSignals(True)
         self.btn_leitura.setChecked(bool(aba is not None and getattr(aba, "_modo_leitura", False)))
         self.btn_leitura.blockSignals(False)
+        self._atualizar_badge_shields()
         self._atualizar_estado_favorito()
 
     def _titulo_mudou(self, view: QWebEngineView, titulo: str):
@@ -476,16 +606,22 @@ class RedCoreBrowser(QMainWindow):
         url = qurl.toString()
         # Navegação nova sempre desliga o modo leitura desta aba (mesmo
         # comportamento de qualquer navegador de verdade -- não faz
-        # sentido persistir o CSS injetado de uma página na próxima).
+        # sentido persistir o CSS injetado de uma página na próxima), e
+        # zera a contagem de bloqueios (Shields, estilo Brave, mostra o
+        # bloqueado NESTA página, não um total acumulado pra sempre).
         view._modo_leitura = False
+        view._bloqueios_pagina = 0
         if view is self._aba_atual():
-            self.barra_endereco.setText(url)
+            self.barra_endereco.setText("" if url == _PAGINA_INICIAL else url)
             self._atualizar_estado_favorito()
             self.btn_leitura.blockSignals(True)
             self.btn_leitura.setChecked(False)
             self.btn_leitura.blockSignals(False)
+            self._atualizar_badge_shields()
         view._ultimo_conteudo = None
-        if getattr(view, "_privada", False):
+        # Nova aba (speed dial) não é uma navegação de verdade -- não
+        # grava história nenhuma, mesma lógica de aba privada.
+        if getattr(view, "_privada", False) or url == _PAGINA_INICIAL:
             view._visita_id = -1
             return
         # Navegação nova de verdade -- abre uma linha NOVA no histórico
@@ -525,9 +661,12 @@ class RedCoreBrowser(QMainWindow):
         de e-mail numa SPA sem a URL mudar), registra como uma visita
         NOVA (é conteúdo novo que você olhou, merece linha própria no
         histórico, não só sobrescrever a mesma). Nunca roda pra abas
-        privadas."""
+        privadas nem pra nova aba (speed dial, não é navegação real)."""
         try:
-            if view is None or not view.isVisible() or getattr(view, "_privada", False):
+            if (
+                view is None or not view.isVisible() or getattr(view, "_privada", False)
+                or view.url().toString() == _PAGINA_INICIAL
+            ):
                 return
         except RuntimeError:
             return  # widget C++ já destruído (aba fechada); o timer some no próximo _fechar_aba
@@ -569,7 +708,10 @@ class RedCoreBrowser(QMainWindow):
         if aba is None:
             return
         url = aba.url().toString()
-        favoritado = bool(url) and url != "about:blank" and redcore_favoritos.esta_favoritado(self.user_id, url)
+        favoritado = (
+            bool(url) and url not in ("about:blank", _PAGINA_INICIAL)
+            and redcore_favoritos.esta_favoritado(self.user_id, url)
+        )
         self.btn_favoritar.setText("⭐" if favoritado else "☆")
         self.btn_favoritar.setChecked(favoritado)
 
@@ -579,7 +721,7 @@ class RedCoreBrowser(QMainWindow):
         if aba is None:
             return
         url = aba.url().toString()
-        if not url or url == "about:blank":
+        if not url or url in ("about:blank", _PAGINA_INICIAL):
             return
         if redcore_favoritos.esta_favoritado(self.user_id, url):
             redcore_favoritos.remover(self.user_id, url)
@@ -614,6 +756,14 @@ class RedCoreBrowser(QMainWindow):
             if not item:
                 return
             url = item.data(Qt.ItemDataRole.UserRole)
+            # Defesa em profundidade -- automacao/redcore_favoritos.adicionar
+            # já rejeita esquemas fora de http(s) ao salvar, mas isso cobre
+            # um favorito ruim ("javascript:...") que já estivesse no banco
+            # de antes desse fix: aba.load(QUrl(...)) executaria o script
+            # na origem da página carregada na aba atual.
+            if not (url.startswith("http://") or url.startswith("https://")):
+                self._notificar("Favorito com endereço inválido -- remova-o.")
+                return
             aba = self._aba_atual() or self.nova_aba(_PAGINA_INICIAL)
             aba.load(QUrl(url))
             dialogo.accept()
@@ -719,7 +869,72 @@ class RedCoreBrowser(QMainWindow):
 
         dialogo.exec()
 
-    # ---------- bloqueio de anúncios ----------
+    # ---------- Shields (bloqueio de anúncios), estilo Brave ----------
+
+    def _registrar_bloqueio(self, pagina_host: str):
+        """Conectado ao sinal `_AdBlockInterceptor.bloqueado` -- roda na
+        THREAD PRINCIPAL (o sinal Qt já cruzou da thread de rede pra cá
+        em segurança), pode mexer em widget à vontade. Credita a
+        contagem "nesta página" de toda aba cuja URL atual bate com o
+        host que originou o pedido bloqueado (normalmente uma só, mas
+        duas abas na mesma página contam as duas -- aproximação
+        razoável, o interceptor é compartilhado entre todas as abas)."""
+        self._bloqueios_totais += 1
+        agora = time.time()
+        if agora - self._ultimo_save_bloqueios > 2.0:
+            self._ultimo_save_bloqueios = agora
+            from config.settings import get_settings
+            settings = get_settings()
+            settings.set("redcore.bloqueios_totais", self._bloqueios_totais)
+            settings.save()
+        for i in range(self.tabs.count()):
+            view = self.tabs.widget(i)
+            if view is None:
+                continue
+            url_aba = view.url().host().lower()
+            if url_aba and (
+                url_aba == pagina_host
+                or pagina_host.endswith("." + url_aba)
+                or url_aba.endswith("." + pagina_host)
+            ):
+                view._bloqueios_pagina = getattr(view, "_bloqueios_pagina", 0) + 1
+        self._atualizar_badge_shields()
+
+    def _atualizar_badge_shields(self):
+        aba = self._aba_atual()
+        n = getattr(aba, "_bloqueios_pagina", 0) if aba is not None else 0
+        self.btn_shields.setText(f"🛡 {n}" if n else "🛡")
+
+    def _abrir_shields(self):
+        """Painel "Shields", estilo Brave: quanto foi bloqueado NESTA
+        página, o total desde sempre, e o interruptor de ligar/desligar
+        (antes um botão separado na barra -- agora mora aqui, junto com
+        os números que dão contexto pra decisão)."""
+        aba = self._aba_atual()
+        host_atual = aba.url().host() if aba is not None else ""
+        bloqueios_pagina = getattr(aba, "_bloqueios_pagina", 0) if aba is not None else 0
+
+        dialogo = QDialog(self)
+        dialogo.setWindowTitle("Shields")
+        layout = QVBoxLayout(dialogo)
+
+        titulo = QLabel(f"🛡 Shields{f' para {host_atual}' if host_atual else ''}")
+        titulo.setStyleSheet("font-weight: bold; font-size: 15px;")
+        layout.addWidget(titulo)
+
+        layout.addWidget(QLabel(f"{bloqueios_pagina} rastreador(es)/anúncio(s) bloqueado(s) nesta página."))
+        layout.addWidget(QLabel(f"{self._bloqueios_totais} bloqueado(s) ao todo, desde sempre."))
+
+        chk_ligado = QCheckBox("Bloqueio de anúncios/rastreadores ligado")
+        chk_ligado.setChecked(self._interceptor.ativo)
+        chk_ligado.toggled.connect(self._alternar_bloqueio)
+        layout.addWidget(chk_ligado)
+
+        btn_fechar = QPushButton("Fechar")
+        btn_fechar.clicked.connect(dialogo.accept)
+        layout.addWidget(btn_fechar)
+
+        dialogo.exec()
 
     def _alternar_bloqueio(self, ligado: bool):
         self._interceptor.ativo = ligado
@@ -767,6 +982,17 @@ class RedCoreBrowser(QMainWindow):
         total = redcore_historico.limpar_historico(self.user_id)
         QMessageBox.information(self, "Histórico limpo", f"{total} visita(s) removida(s) da memória do Ultron.")
 
+    def closeEvent(self, event):
+        # Rede de segurança pro total de bloqueios (Shields) -- as
+        # gravações normais são throttladas (ver _registrar_bloqueio),
+        # então até uns 2s de contagem podiam se perder se a janela
+        # fechasse bem no meio de uma rajada de bloqueios.
+        from config.settings import get_settings
+        settings = get_settings()
+        settings.set("redcore.bloqueios_totais", self._bloqueios_totais)
+        settings.save()
+        super().closeEvent(event)
+
 
 def _resolver_endereco(texto: str) -> str:
     """Trata a barra de endereço como um navegador de verdade trata:
@@ -775,7 +1001,6 @@ def _resolver_endereco(texto: str) -> str:
         return texto
     if "." in texto and " " not in texto:
         return f"https://{texto}"
-    import urllib.parse
     return f"https://www.google.com/search?q={urllib.parse.quote(texto)}"
 
 

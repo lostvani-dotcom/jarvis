@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/shieldsTitulo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🛡 Shields"
+        android:textColor="#1A1A1A"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="14dp" />
+
+    <TextView
+        android:id="@+id/shieldsPagina"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#1A1A1A"
+        android:textSize="14sp"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/shieldsTotal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#6B6B6B"
+        android:textSize="13sp"
+        android:layout_marginBottom="16dp" />
+
+    <CheckBox
+        android:id="@+id/shieldsToggle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Bloqueio de anúncios/rastreadores ligado"
+        android:textColor="#1A1A1A"
+        android:textSize="13sp" />
+
+</LinearLayout>

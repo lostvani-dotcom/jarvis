@@ -71,17 +71,6 @@ class Prefs(context: Context) {
         get() = sp.getLong("ia_ultima_sincronizacao", 0L)
         set(value) = sp.edit().putLong("ia_ultima_sincronizacao", value).apply()
 
-    // ---- bloqueio do app (só o dono abre, via biometria do celular) ----
-    var appLockAtivo: Boolean
-        get() = sp.getBoolean("app_lock", false)
-        set(value) = sp.edit().putBoolean("app_lock", value).apply()
-
-    // Marca que já perguntamos sobre o bloqueio uma vez (pra não repetir
-    // o convite a cada abertura -- só na primeira, ou via botão depois).
-    var lockSetupPerguntado: Boolean
-        get() = sp.getBoolean("lock_setup_perguntado", false)
-        set(value) = sp.edit().putBoolean("lock_setup_perguntado", value).apply()
-
     // ---- widget de tela inicial (ver UltronWidgetProvider.kt) ----
     // Boolean? (tri-estado: nunca checado / online / offline) -- SharedPreferences
     // não tem getBoolean nullable de verdade, então -1/0/1 representa
